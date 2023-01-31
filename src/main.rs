@@ -7,7 +7,11 @@ struct AnimationTimer(Timer);
 #[derive(Component)]
 struct Player;
 
+#[derive(Component)]
+struct Enemy;
+
 const PLAYER_SPEED: f32 = 100.0;
+const ENEMY_SPEED: f32 = 80.0;
 
 fn global_setup(mut commands: Commands) {
     commands.spawn(Camera2dBundle::default());
@@ -34,7 +38,33 @@ fn setup_player(
     ));
 }
 
-fn animate_player(
+fn spawn_bat(
+    mut commands: Commands,
+    asset_server: Res<AssetServer>,
+    mut texture_atlases: ResMut<Assets<TextureAtlas>>,
+) {
+    let spritesheet_handle = asset_server.load("bat-sheet.png");
+    let texture_atlas =
+        TextureAtlas::from_grid(spritesheet_handle, Vec2::new(24.0, 24.0), 4, 1, None, None);
+    commands.spawn((
+        Enemy,
+        SpriteSheetBundle {
+            texture_atlas: texture_atlases.add(texture_atlas),
+            transform: Transform {
+                // TODO: Spawn outside of scene
+                translation: Vec3::new(200.0, 200.0, 0.0),
+                scale: Vec3::splat(1.5),
+                ..default()
+            },
+            ..default()
+        },
+        AnimationTimer(Timer::from_seconds(0.1, TimerMode::Repeating)),
+        RigidBody::Dynamic,
+        Velocity::default(),
+    ));
+}
+
+fn animate_loops(
     time: Res<Time>,
     texture_atlases: Res<Assets<TextureAtlas>>,
     mut query: Query<(
@@ -52,7 +82,7 @@ fn animate_player(
     }
 }
 
-// Replace with a spring https://theorangeduck.com/page/spring-roll-call
+// TODO: Replace with a spring https://theorangeduck.com/page/spring-roll-call
 fn lerp(x: f32, y: f32, t: f32) -> f32 {
     return (1.0 - t) * x + t * y;
 }
@@ -80,6 +110,19 @@ fn move_player(
     }
 }
 
+fn move_towards_player(
+    player_transform_query: Query<&Transform, With<Player>>,
+    mut enemy_query: Query<(&Transform, &mut Velocity), Without<Player>>,
+) {
+    let Some(player_transform) = player_transform_query.iter().next() else { return };
+    for (enemy_transform, mut enemy_velocity) in enemy_query.iter_mut() {
+        let direction_to_player = (player_transform.translation - enemy_transform.translation)
+            .normalize()
+            .truncate();
+        enemy_velocity.linvel = direction_to_player * ENEMY_SPEED;
+    }
+}
+
 fn main() {
     App::new()
         .add_plugins(
@@ -99,8 +142,10 @@ fn main() {
         .add_plugin(RapierDebugRenderPlugin::default())
         .add_startup_system(global_setup)
         .add_startup_system(setup_player)
+        .add_startup_system(spawn_bat)
         .add_system(move_player)
-        .add_system(animate_player.after(move_player))
+        .add_system(move_towards_player)
+        .add_system(animate_loops.after(move_player))
         .add_system(bevy::window::close_on_esc)
         .run();
 }
