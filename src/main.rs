@@ -87,7 +87,7 @@ fn main() {
                 .set(ImagePlugin::default_nearest())
                 .set(WindowPlugin {
                     window: WindowDescriptor {
-                        title: "Breakout!".to_string(),
+                        title: "Monster Survivors!".to_string(),
                         width: 500.0,
                         height: 500.0,
                         ..default()
