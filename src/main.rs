@@ -25,22 +25,39 @@ fn setup_player(
     let spritesheet_handle = asset_server.load("player-sheet.png");
     let texture_atlas =
         TextureAtlas::from_grid(spritesheet_handle, Vec2::new(24.0, 24.0), 4, 1, None, None);
-    commands.spawn((
-        Player,
-        SpriteSheetBundle {
-            texture_atlas: texture_atlases.add(texture_atlas),
-            transform: Transform::from_scale(Vec3::splat(2.0)),
-            ..default()
-        },
-        AnimationTimer(Timer::from_seconds(0.2, TimerMode::Repeating)),
-        RigidBody::Dynamic,
-        Collider::cuboid(8.0, 10.0),
-        LockedAxes::ROTATION_LOCKED,
-        // Make it so the player stays stationary when colliding with enemies.
-        Dominance::group(10),
-        Velocity::default(),
-        ActiveEvents::COLLISION_EVENTS,
-    ));
+    commands
+        .spawn((
+            Player,
+            SpriteSheetBundle {
+                texture_atlas: texture_atlases.add(texture_atlas),
+                transform: Transform::from_scale(Vec3::splat(2.0)),
+                ..default()
+            },
+            AnimationTimer(Timer::from_seconds(0.2, TimerMode::Repeating)),
+            RigidBody::Dynamic,
+            Collider::cuboid(8.0, 10.0),
+            LockedAxes::ROTATION_LOCKED,
+            // Make it so the player stays stationary when colliding with enemies.
+            Dominance::group(10),
+            Velocity::default(),
+            ActiveEvents::COLLISION_EVENTS,
+        ))
+        .with_children(|parent| {
+            parent.spawn(
+                (SpriteBundle {
+                    sprite: Sprite {
+                        color: Color::rgb(0.0, 1.0, 0.0),
+                        ..default()
+                    },
+                    transform: Transform {
+                        scale: Vec3::new(18.0, 2.0, 0.0),
+                        translation: Vec3::new(0.0, -14.0, 0.0),
+                        ..default()
+                    },
+                    ..default()
+                }),
+            );
+        });
 }
 
 fn spawn_bat(
