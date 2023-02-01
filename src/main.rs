@@ -39,6 +39,7 @@ fn setup_player(
         // Make it so the player stays stationary when colliding with enemies.
         Dominance::group(10),
         Velocity::default(),
+        ActiveEvents::COLLISION_EVENTS,
     ));
 }
 
@@ -129,6 +130,22 @@ fn move_towards_player(
     }
 }
 
+fn display_contact_info(
+    rapier_context: Res<RapierContext>,
+    player_entity_query: Query<Entity, With<Player>>,
+) {
+    let entity = player_entity_query.single(); // An entity with a collider attached.
+
+    /* Iterate through all the contact pairs involving a specific collider. */
+    for contact_pair in rapier_context.contacts_with(entity) {
+        if contact_pair.collider1() == entity {
+            dbg!(contact_pair.collider1());
+        } else if contact_pair.collider2() == entity {
+            dbg!(contact_pair.collider2());
+        }
+    }
+}
+
 fn main() {
     App::new()
         .add_plugins(
@@ -152,6 +169,7 @@ fn main() {
         .add_system(move_player)
         .add_system(move_towards_player)
         .add_system(animate_loops.after(move_player))
+        .add_system(display_contact_info.after(move_player))
         .add_system(bevy::window::close_on_esc)
         .run();
 }
