@@ -34,6 +34,10 @@ fn setup_player(
         },
         AnimationTimer(Timer::from_seconds(0.2, TimerMode::Repeating)),
         RigidBody::Dynamic,
+        Collider::cuboid(8.0, 10.0),
+        LockedAxes::ROTATION_LOCKED,
+        // Make it so the player stays stationary when colliding with enemies.
+        Dominance::group(10),
         Velocity::default(),
     ));
 }
@@ -60,6 +64,8 @@ fn spawn_bat(
         },
         AnimationTimer(Timer::from_seconds(0.1, TimerMode::Repeating)),
         RigidBody::Dynamic,
+        Collider::cuboid(8.0, 8.0),
+        LockedAxes::ROTATION_LOCKED,
         Velocity::default(),
     ));
 }
