@@ -2,9 +2,13 @@ use bevy::prelude::*;
 use bevy::sprite::*;
 use bevy::utils::HashMap;
 use bevy_rapier2d::prelude::*;
+use std::f32::consts::PI;
 
 #[derive(Component, Deref, DerefMut)]
 struct AnimationTimer(Timer);
+
+#[derive(Component, Deref, DerefMut)]
+struct FireballTimer(Timer);
 
 #[derive(Component)]
 struct Player {
@@ -48,6 +52,7 @@ fn setup_player(
                 ..default()
             },
             AnimationTimer(Timer::from_seconds(0.2, TimerMode::Repeating)),
+            FireballTimer(Timer::from_seconds(0.5, TimerMode::Repeating)),
             RigidBody::Dynamic,
             Collider::cuboid(8.0, 10.0),
             LockedAxes::ROTATION_LOCKED,
@@ -79,7 +84,7 @@ fn setup_player(
                     },
                     transform: Transform {
                         scale: Vec3::new(18.0, 2.0, 0.0),
-                        translation: Vec3::new(-9.0, -14.0, 0.0),
+                        translation: Vec3::new(-9.0, -14.0, 1.0),
                         ..default()
                     },
                     ..default()
@@ -164,7 +169,7 @@ fn move_player(
 
 fn move_towards_player(
     player_transform_query: Query<&Transform, With<Player>>,
-    mut enemy_query: Query<(&Transform, &mut Velocity), Without<Player>>,
+    mut enemy_query: Query<(&Transform, &mut Velocity), With<Enemy>>,
 ) {
     let Some(player_transform) = player_transform_query.iter().next() else { return };
     for (enemy_transform, mut enemy_velocity) in enemy_query.iter_mut() {
@@ -180,6 +185,7 @@ fn player_enemy_collisions(
     rapier_context: Res<RapierContext>,
     mut player_hit_cooldown: ResMut<PlayerHitCooldown>,
     mut player_entity_query: Query<(Entity, &mut Player)>,
+    enemy_query: Query<Entity, With<Enemy>>,
 ) {
     let (player_entity, mut player) = player_entity_query.single_mut();
 
@@ -199,9 +205,12 @@ fn player_enemy_collisions(
             contact_pair.collider1()
         };
 
-        if !player_hit_cooldown.0.contains_key(&enemy_collider) {
-            player.hp -= 5;
-            player_hit_cooldown.0.insert(enemy_collider, 0.5);
+        // TODO: Could be done another way, maybe filter groups in rapier?
+        if enemy_query.get(enemy_collider).is_ok() {
+            if !player_hit_cooldown.0.contains_key(&enemy_collider) {
+                player.hp -= 5;
+                player_hit_cooldown.0.insert(enemy_collider, 0.5);
+            }
         }
     }
 }
@@ -213,7 +222,45 @@ fn animate_hp_bar(
     let Some(player) = player_query.iter().next() else { return };
     let mut bar_transform = bar_transform_query.single_mut();
 
-    bar_transform.scale.x = (player.hp as f32 / player.max_hp as f32).max(0.0) * 18.0;
+    bar_transform.scale.x = (player.hp as f32 / player.max_hp as f32) * 18.0;
+}
+
+fn launch_fireball(
+    mut commands: Commands,
+    time: Res<Time>,
+    asset_server: Res<AssetServer>,
+    mut timer_query: Query<&mut FireballTimer>,
+    player_transform_query: Query<&Transform, With<Player>>,
+    enemy_transform_query: Query<&Transform, With<Enemy>>,
+) {
+    let Some(player_transform) = player_transform_query.iter().next() else { return };
+    // TODO: Change system to find closest enemy.
+    let Some(enemy_transform) = enemy_transform_query.iter().next() else { return };
+    let Some(mut timer) = timer_query.iter_mut().next() else { return };
+
+    timer.tick(time.delta());
+    if timer.just_finished() {
+        let player_position = player_transform.translation.truncate();
+        let enemy_position = enemy_transform.translation.truncate();
+        let direction = enemy_position - player_position;
+        let rotation_radians = direction.y.atan2(direction.x) + PI / 2.0;
+
+        commands.spawn((
+            SpriteBundle {
+                texture: asset_server.load("effects/fireball.png"),
+                transform: Transform {
+                    translation: player_transform.translation.clone(),
+                    rotation: Quat::from_euler(EulerRot::XYZ, 0.0, 0.0, rotation_radians),
+                    ..default()
+                },
+                ..default()
+            },
+            RigidBody::Dynamic,
+            Sensor,
+            Collider::ball(10.0),
+            Velocity::linear(direction.normalize() * 200.0),
+        ));
+    }
 }
 
 fn main() {
@@ -231,17 +278,22 @@ fn main() {
                     ..default()
                 }),
         )
+        .insert_resource(RapierConfiguration {
+            gravity: Vect::new(0.0, 0.0),
+            ..default()
+        })
+        .insert_resource(PlayerHitCooldown(HashMap::default()))
         .add_plugin(RapierPhysicsPlugin::<NoUserData>::pixels_per_meter(100.0))
         .add_plugin(RapierDebugRenderPlugin::default())
-        .insert_resource(PlayerHitCooldown(HashMap::default()))
         .add_startup_system(global_setup)
         .add_startup_system(setup_player)
         .add_startup_system(spawn_bat)
         .add_system(move_player)
-        .add_system(move_towards_player)
+        .add_system(move_towards_player.after(move_player))
         .add_system(animate_loops.after(move_player))
         .add_system(player_enemy_collisions.after(move_player))
         .add_system(animate_hp_bar.after(player_enemy_collisions))
+        .add_system(launch_fireball.after(move_towards_player))
         .add_system(bevy::window::close_on_esc)
         .run();
 }
