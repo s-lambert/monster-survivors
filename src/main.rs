@@ -1,4 +1,5 @@
 use bevy::prelude::*;
+use bevy::sprite::*;
 use bevy::utils::HashMap;
 use bevy_rapier2d::prelude::*;
 
@@ -7,8 +8,12 @@ struct AnimationTimer(Timer);
 
 #[derive(Component)]
 struct Player {
+    max_hp: i32,
     hp: i32,
 }
+
+#[derive(Component)]
+struct PlayerHpBar;
 
 #[derive(Resource)]
 struct PlayerHitCooldown(HashMap<Entity, f32>);
@@ -33,7 +38,10 @@ fn setup_player(
         TextureAtlas::from_grid(spritesheet_handle, Vec2::new(24.0, 24.0), 4, 1, None, None);
     commands
         .spawn((
-            Player { hp: 100 },
+            Player {
+                max_hp: 100,
+                hp: 100,
+            },
             SpriteSheetBundle {
                 texture_atlas: texture_atlases.add(texture_atlas),
                 transform: Transform::from_scale(Vec3::splat(2.0)),
@@ -49,20 +57,34 @@ fn setup_player(
             ActiveEvents::COLLISION_EVENTS,
         ))
         .with_children(|parent| {
-            parent.spawn(
-                (SpriteBundle {
+            parent.spawn(SpriteBundle {
+                sprite: Sprite {
+                    color: Color::rgb(1.0, 0.0, 0.0),
+                    ..default()
+                },
+                transform: Transform {
+                    scale: Vec3::new(18.0, 2.0, 0.0),
+                    translation: Vec3::new(0.0, -14.0, 0.0),
+                    ..default()
+                },
+                ..default()
+            });
+            parent.spawn((
+                PlayerHpBar,
+                SpriteBundle {
                     sprite: Sprite {
                         color: Color::rgb(0.0, 1.0, 0.0),
+                        anchor: Anchor::CenterLeft,
                         ..default()
                     },
                     transform: Transform {
                         scale: Vec3::new(18.0, 2.0, 0.0),
-                        translation: Vec3::new(0.0, -14.0, 0.0),
+                        translation: Vec3::new(-9.0, -14.0, 0.0),
                         ..default()
                     },
                     ..default()
-                }),
-            );
+                },
+            ));
         });
 }
 
@@ -169,7 +191,6 @@ fn player_enemy_collisions(
             *v <= 0.0
         })
         .for_each(drop);
-    dbg!(&player_hit_cooldown.0);
 
     for contact_pair in rapier_context.contacts_with(player_entity) {
         let enemy_collider = if contact_pair.collider1() == player_entity {
@@ -179,11 +200,20 @@ fn player_enemy_collisions(
         };
 
         if !player_hit_cooldown.0.contains_key(&enemy_collider) {
-            player.hp -= 1;
+            player.hp -= 5;
             player_hit_cooldown.0.insert(enemy_collider, 0.5);
         }
     }
-    dbg!(player.hp);
+}
+
+fn animate_hp_bar(
+    player_query: Query<&Player, Changed<Player>>,
+    mut bar_transform_query: Query<&mut Transform, With<PlayerHpBar>>,
+) {
+    let Some(player) = player_query.iter().next() else { return };
+    let mut bar_transform = bar_transform_query.single_mut();
+
+    bar_transform.scale.x = (player.hp as f32 / player.max_hp as f32).max(0.0) * 18.0;
 }
 
 fn main() {
@@ -211,6 +241,7 @@ fn main() {
         .add_system(move_towards_player)
         .add_system(animate_loops.after(move_player))
         .add_system(player_enemy_collisions.after(move_player))
+        .add_system(animate_hp_bar.after(player_enemy_collisions))
         .add_system(bevy::window::close_on_esc)
         .run();
 }
