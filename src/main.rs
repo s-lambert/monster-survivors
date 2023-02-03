@@ -1,11 +1,17 @@
 use bevy::prelude::*;
+use bevy::utils::HashMap;
 use bevy_rapier2d::prelude::*;
 
 #[derive(Component, Deref, DerefMut)]
 struct AnimationTimer(Timer);
 
 #[derive(Component)]
-struct Player;
+struct Player {
+    hp: i32,
+}
+
+#[derive(Resource)]
+struct PlayerHitCooldown(HashMap<Entity, f32>);
 
 #[derive(Component)]
 struct Enemy;
@@ -27,7 +33,7 @@ fn setup_player(
         TextureAtlas::from_grid(spritesheet_handle, Vec2::new(24.0, 24.0), 4, 1, None, None);
     commands
         .spawn((
-            Player,
+            Player { hp: 100 },
             SpriteSheetBundle {
                 texture_atlas: texture_atlases.add(texture_atlas),
                 transform: Transform::from_scale(Vec3::splat(2.0)),
@@ -147,20 +153,37 @@ fn move_towards_player(
     }
 }
 
-fn display_contact_info(
+fn player_enemy_collisions(
+    time: Res<Time>,
     rapier_context: Res<RapierContext>,
-    player_entity_query: Query<Entity, With<Player>>,
+    mut player_hit_cooldown: ResMut<PlayerHitCooldown>,
+    mut player_entity_query: Query<(Entity, &mut Player)>,
 ) {
-    let entity = player_entity_query.single(); // An entity with a collider attached.
+    let (player_entity, mut player) = player_entity_query.single_mut();
 
-    /* Iterate through all the contact pairs involving a specific collider. */
-    for contact_pair in rapier_context.contacts_with(entity) {
-        if contact_pair.collider1() == entity {
-            dbg!(contact_pair.collider1());
-        } else if contact_pair.collider2() == entity {
-            dbg!(contact_pair.collider2());
+    let delta_seconds = time.delta_seconds();
+    player_hit_cooldown
+        .0
+        .drain_filter(|_k, v| {
+            *v -= delta_seconds;
+            *v <= 0.0
+        })
+        .for_each(drop);
+    dbg!(&player_hit_cooldown.0);
+
+    for contact_pair in rapier_context.contacts_with(player_entity) {
+        let enemy_collider = if contact_pair.collider1() == player_entity {
+            contact_pair.collider2()
+        } else {
+            contact_pair.collider1()
+        };
+
+        if !player_hit_cooldown.0.contains_key(&enemy_collider) {
+            player.hp -= 1;
+            player_hit_cooldown.0.insert(enemy_collider, 0.5);
         }
     }
+    dbg!(player.hp);
 }
 
 fn main() {
@@ -180,13 +203,14 @@ fn main() {
         )
         .add_plugin(RapierPhysicsPlugin::<NoUserData>::pixels_per_meter(100.0))
         .add_plugin(RapierDebugRenderPlugin::default())
+        .insert_resource(PlayerHitCooldown(HashMap::default()))
         .add_startup_system(global_setup)
         .add_startup_system(setup_player)
         .add_startup_system(spawn_bat)
         .add_system(move_player)
         .add_system(move_towards_player)
         .add_system(animate_loops.after(move_player))
-        .add_system(display_contact_info.after(move_player))
+        .add_system(player_enemy_collisions.after(move_player))
         .add_system(bevy::window::close_on_esc)
         .run();
 }
