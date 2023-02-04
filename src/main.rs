@@ -330,6 +330,8 @@ fn attack_enemy_collisions(
             if intersecting {
                 commands.entity(collider1).despawn();
                 commands.entity(collider2).despawn();
+                // Only kill the first enemy that gets hit.
+                continue;
             }
         }
     }
