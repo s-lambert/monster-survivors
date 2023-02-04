@@ -100,6 +100,40 @@ fn setup_player(
         });
 }
 
+fn setup_background(mut commands: Commands, asset_server: Res<AssetServer>) {
+    let world_size = 3;
+    let background_size = 1024.0;
+    let starting_point = -(background_size * ((world_size - 1) as f32) / 2.0);
+    for row in 0..world_size {
+        for column in 0..world_size {
+            commands.spawn(SpriteBundle {
+                texture: asset_server.load("background.png"),
+                transform: Transform {
+                    translation: Vec3::new(
+                        remap(
+                            0.0,
+                            (world_size - 1) as f32,
+                            starting_point,
+                            -starting_point,
+                            row as f32,
+                        ),
+                        remap(
+                            0.0,
+                            (world_size - 1) as f32,
+                            starting_point,
+                            -starting_point,
+                            column as f32,
+                        ),
+                        0.0,
+                    ),
+                    ..default()
+                },
+                ..default()
+            });
+        }
+    }
+}
+
 fn spawn_bat(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
@@ -175,6 +209,15 @@ fn animate_player(
 // TODO: Replace with a spring https://theorangeduck.com/page/spring-roll-call
 fn lerp(x: f32, y: f32, t: f32) -> f32 {
     return (1.0 - t) * x + t * y;
+}
+
+fn inverse_lerp(x: f32, y: f32, v: f32) -> f32 {
+    return (v - x) / (y - x);
+}
+
+fn remap(input_min: f32, input_max: f32, output_min: f32, output_max: f32, value: f32) -> f32 {
+    let t = inverse_lerp(input_min, input_max, value);
+    return lerp(output_min, output_max, t);
 }
 
 fn move_player(
@@ -348,6 +391,7 @@ fn main() {
         .add_plugin(RapierPhysicsPlugin::<NoUserData>::pixels_per_meter(100.0))
         .add_plugin(RapierDebugRenderPlugin::default())
         .add_startup_system(global_setup)
+        .add_startup_system(setup_background)
         .add_startup_system(setup_player)
         .add_startup_system(spawn_bat)
         .add_system(move_player)
