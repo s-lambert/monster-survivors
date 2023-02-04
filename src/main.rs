@@ -54,7 +54,11 @@ fn setup_player(
             },
             SpriteSheetBundle {
                 texture_atlas: texture_atlases.add(texture_atlas),
-                transform: Transform::from_scale(Vec3::splat(2.0)),
+                transform: Transform {
+                    translation: Vec3::new(0.0, 0.0, 1.0),
+                    scale: Vec3::splat(2.0),
+                    ..default()
+                },
                 ..default()
             },
             PlayerAnimationTimer(Timer::from_seconds(0.2, TimerMode::Repeating)),
