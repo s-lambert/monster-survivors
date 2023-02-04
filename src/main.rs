@@ -26,6 +26,11 @@ struct PlayerHpBar;
 struct PlayerHitCooldown(HashMap<Entity, f32>);
 
 #[derive(Component)]
+struct EnemySpawner {
+    timer: Timer,
+}
+
+#[derive(Component)]
 struct Enemy;
 
 #[derive(Component)]
@@ -138,36 +143,55 @@ fn setup_background(mut commands: Commands, asset_server: Res<AssetServer>) {
     }
 }
 
-fn spawn_bat(
+fn setup_spawns(mut commands: Commands) {
+    commands.spawn(EnemySpawner {
+        timer: Timer::from_seconds(0.4, TimerMode::Repeating),
+    });
+}
+
+fn spawn_enemies(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
     mut texture_atlases: ResMut<Assets<TextureAtlas>>,
+    time: Res<Time>,
+    mut query: Query<&mut EnemySpawner>,
 ) {
-    let spritesheet_handle = asset_server.load("bat-sheet.png");
-    let texture_atlas =
-        TextureAtlas::from_grid(spritesheet_handle, Vec2::new(24.0, 24.0), 4, 1, None, None);
-    commands.spawn((
-        Enemy,
-        SpriteSheetBundle {
-            texture_atlas: texture_atlases.add(texture_atlas),
-            transform: Transform {
-                // TODO: Spawn outside of scene
-                translation: Vec3::new(200.0, 200.0, 0.0),
-                scale: Vec3::splat(1.5),
-                ..default()
-            },
-            ..default()
-        },
-        LoopAnimationTimer(Timer::from_seconds(0.1, TimerMode::Repeating)),
-        RigidBody::Dynamic,
-        Collider::cuboid(8.0, 8.0),
-        CollisionGroups::new(
-            Group::GROUP_2,
-            Group::GROUP_1 | Group::GROUP_2 | Group::GROUP_4,
-        ),
-        LockedAxes::ROTATION_LOCKED,
-        Velocity::default(),
-    ));
+    for mut enemy_spawner in &mut query {
+        enemy_spawner.timer.tick(time.delta());
+        if enemy_spawner.timer.just_finished() {
+            let spritesheet_handle = asset_server.load("bat-sheet.png");
+            let texture_atlas = TextureAtlas::from_grid(
+                spritesheet_handle,
+                Vec2::new(24.0, 24.0),
+                4,
+                1,
+                None,
+                None,
+            );
+            commands.spawn((
+                Enemy,
+                SpriteSheetBundle {
+                    texture_atlas: texture_atlases.add(texture_atlas),
+                    transform: Transform {
+                        // TODO: Spawn outside of scene
+                        translation: Vec3::new(200.0, 200.0, 1.0),
+                        scale: Vec3::splat(1.5),
+                        ..default()
+                    },
+                    ..default()
+                },
+                LoopAnimationTimer(Timer::from_seconds(0.1, TimerMode::Repeating)),
+                RigidBody::Dynamic,
+                Collider::cuboid(8.0, 8.0),
+                CollisionGroups::new(
+                    Group::GROUP_2,
+                    Group::GROUP_1 | Group::GROUP_2 | Group::GROUP_4,
+                ),
+                LockedAxes::ROTATION_LOCKED,
+                Velocity::default(),
+            ));
+        }
+    }
 }
 
 fn animate_loops(
@@ -397,7 +421,8 @@ fn main() {
         .add_startup_system(global_setup)
         .add_startup_system(setup_background)
         .add_startup_system(setup_player)
-        .add_startup_system(spawn_bat)
+        .add_startup_system(setup_spawns)
+        .add_system(spawn_enemies)
         .add_system(move_player)
         .add_system(move_towards_player.after(move_player))
         .add_system(animate_loops.after(move_towards_player))
