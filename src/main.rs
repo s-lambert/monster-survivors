@@ -314,6 +314,17 @@ fn launch_fireball(
     }
 }
 
+fn camera_follow_player(
+    mut camera_transform_query: Query<&mut Transform, (With<Camera>, Without<Player>)>,
+    player_transform_query: Query<&Transform, With<Player>>,
+) {
+    let Some(mut camera_transform) = camera_transform_query.iter_mut().next() else { return };
+    let Some(player_transform) = player_transform_query.iter().next() else { return };
+
+    camera_transform.translation.x = player_transform.translation.x;
+    camera_transform.translation.y = player_transform.translation.y;
+}
+
 fn main() {
     App::new()
         .add_plugins(
@@ -347,6 +358,8 @@ fn main() {
         .add_system(animate_hp_bar.after(player_enemy_collisions))
         .add_system(launch_fireball.after(move_towards_player))
         .add_system(attack_enemy_collisions)
+        // TOOD: Not sure if this is the right place to add it, see if there's a way to add after a plugin.
+        .add_system_to_stage(CoreStage::PostUpdate, camera_follow_player)
         .add_system(bevy::window::close_on_esc)
         .run();
 }
