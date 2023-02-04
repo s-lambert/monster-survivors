@@ -159,39 +159,41 @@ fn spawn_enemies(
     for mut enemy_spawner in &mut query {
         enemy_spawner.timer.tick(time.delta());
         if enemy_spawner.timer.just_finished() {
-            let spritesheet_handle = asset_server.load("bat-sheet.png");
-            let texture_atlas = TextureAtlas::from_grid(
-                spritesheet_handle,
-                Vec2::new(24.0, 24.0),
-                4,
-                1,
-                None,
-                None,
-            );
-            commands.spawn((
-                Enemy,
-                SpriteSheetBundle {
-                    texture_atlas: texture_atlases.add(texture_atlas),
-                    transform: Transform {
-                        // TODO: Spawn outside of scene
-                        translation: Vec3::new(200.0, 200.0, 1.0),
-                        scale: Vec3::splat(1.5),
-                        ..default()
-                    },
-                    ..default()
-                },
-                LoopAnimationTimer(Timer::from_seconds(0.1, TimerMode::Repeating)),
-                RigidBody::Dynamic,
-                Collider::cuboid(8.0, 8.0),
-                CollisionGroups::new(
-                    Group::GROUP_2,
-                    Group::GROUP_1 | Group::GROUP_2 | Group::GROUP_4,
-                ),
-                LockedAxes::ROTATION_LOCKED,
-                Velocity::default(),
-            ));
+            spawn_bat(&mut commands, &asset_server, &mut texture_atlases);
         }
     }
+}
+
+fn spawn_bat(
+    commands: &mut Commands,
+    asset_server: &Res<AssetServer>,
+    texture_atlases: &mut ResMut<Assets<TextureAtlas>>,
+) {
+    let spritesheet_handle = asset_server.load("bat-sheet.png");
+    let texture_atlas =
+        TextureAtlas::from_grid(spritesheet_handle, Vec2::new(24.0, 24.0), 4, 1, None, None);
+    commands.spawn((
+        Enemy,
+        SpriteSheetBundle {
+            texture_atlas: texture_atlases.add(texture_atlas),
+            transform: Transform {
+                // TODO: Spawn outside of scene
+                translation: Vec3::new(200.0, 200.0, 1.0),
+                scale: Vec3::splat(1.5),
+                ..default()
+            },
+            ..default()
+        },
+        LoopAnimationTimer(Timer::from_seconds(0.1, TimerMode::Repeating)),
+        RigidBody::Dynamic,
+        Collider::cuboid(8.0, 8.0),
+        CollisionGroups::new(
+            Group::GROUP_2,
+            Group::GROUP_1 | Group::GROUP_2 | Group::GROUP_4,
+        ),
+        LockedAxes::ROTATION_LOCKED,
+        Velocity::default(),
+    ));
 }
 
 fn animate_loops(
