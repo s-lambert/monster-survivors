@@ -28,6 +28,9 @@ struct PlayerHitCooldown(HashMap<Entity, f32>);
 #[derive(Component)]
 struct Enemy;
 
+#[derive(Component)]
+struct Attack;
+
 const PLAYER_SPEED: f32 = 100.0;
 const ENEMY_SPEED: f32 = 80.0;
 
@@ -58,6 +61,7 @@ fn setup_player(
             FireballTimer(Timer::from_seconds(0.5, TimerMode::Repeating)),
             RigidBody::Dynamic,
             Collider::cuboid(8.0, 10.0),
+            CollisionGroups::new(Group::GROUP_1, Group::GROUP_2),
             LockedAxes::ROTATION_LOCKED,
             // Make it so the player stays stationary when colliding with enemies.
             Dominance::group(10),
@@ -119,6 +123,10 @@ fn spawn_bat(
         LoopAnimationTimer(Timer::from_seconds(0.1, TimerMode::Repeating)),
         RigidBody::Dynamic,
         Collider::cuboid(8.0, 8.0),
+        CollisionGroups::new(
+            Group::GROUP_2,
+            Group::GROUP_1 | Group::GROUP_2 | Group::GROUP_4,
+        ),
         LockedAxes::ROTATION_LOCKED,
         Velocity::default(),
     ));
@@ -240,6 +248,22 @@ fn player_enemy_collisions(
     }
 }
 
+fn attack_enemy_collisions(
+    mut commands: Commands,
+    rapier_context: Res<RapierContext>,
+    attack_query: Query<Entity, With<Attack>>,
+) {
+    for attack_entity in attack_query.iter() {
+        for (collider1, collider2, intersecting) in rapier_context.intersections_with(attack_entity)
+        {
+            if intersecting {
+                commands.entity(collider1).despawn();
+                commands.entity(collider2).despawn();
+            }
+        }
+    }
+}
+
 fn animate_hp_bar(
     player_query: Query<&Player, Changed<Player>>,
     mut bar_transform_query: Query<&mut Transform, With<PlayerHpBar>>,
@@ -271,6 +295,7 @@ fn launch_fireball(
         let rotation_radians = direction.y.atan2(direction.x) + PI / 2.0;
 
         commands.spawn((
+            Attack,
             SpriteBundle {
                 texture: asset_server.load("effects/fireball.png"),
                 transform: Transform {
@@ -283,6 +308,7 @@ fn launch_fireball(
             RigidBody::Dynamic,
             Sensor,
             Collider::ball(10.0),
+            CollisionGroups::new(Group::GROUP_4, Group::GROUP_2),
             Velocity::linear(direction.normalize() * 200.0),
         ));
     }
@@ -320,6 +346,7 @@ fn main() {
         .add_system(player_enemy_collisions.after(move_player))
         .add_system(animate_hp_bar.after(player_enemy_collisions))
         .add_system(launch_fireball.after(move_towards_player))
+        .add_system(attack_enemy_collisions)
         .add_system(bevy::window::close_on_esc)
         .run();
 }
