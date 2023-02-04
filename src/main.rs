@@ -5,7 +5,10 @@ use bevy_rapier2d::prelude::*;
 use std::f32::consts::PI;
 
 #[derive(Component, Deref, DerefMut)]
-struct AnimationTimer(Timer);
+struct PlayerAnimationTimer(Timer);
+
+#[derive(Component, Deref, DerefMut)]
+struct LoopAnimationTimer(Timer);
 
 #[derive(Component, Deref, DerefMut)]
 struct FireballTimer(Timer);
@@ -51,7 +54,7 @@ fn setup_player(
                 transform: Transform::from_scale(Vec3::splat(2.0)),
                 ..default()
             },
-            AnimationTimer(Timer::from_seconds(0.2, TimerMode::Repeating)),
+            PlayerAnimationTimer(Timer::from_seconds(0.2, TimerMode::Repeating)),
             FireballTimer(Timer::from_seconds(0.5, TimerMode::Repeating)),
             RigidBody::Dynamic,
             Collider::cuboid(8.0, 10.0),
@@ -113,7 +116,7 @@ fn spawn_bat(
             },
             ..default()
         },
-        AnimationTimer(Timer::from_seconds(0.1, TimerMode::Repeating)),
+        LoopAnimationTimer(Timer::from_seconds(0.1, TimerMode::Repeating)),
         RigidBody::Dynamic,
         Collider::cuboid(8.0, 8.0),
         LockedAxes::ROTATION_LOCKED,
@@ -125,12 +128,34 @@ fn animate_loops(
     time: Res<Time>,
     texture_atlases: Res<Assets<TextureAtlas>>,
     mut query: Query<(
-        &mut AnimationTimer,
+        &mut LoopAnimationTimer,
         &mut TextureAtlasSprite,
         &Handle<TextureAtlas>,
     )>,
 ) {
     for (mut timer, mut sprite, texture_atlas_handle) in &mut query {
+        timer.tick(time.delta());
+        if timer.just_finished() {
+            let texture_atlas = texture_atlases.get(texture_atlas_handle).unwrap();
+            sprite.index = (sprite.index + 1) % texture_atlas.textures.len();
+        }
+    }
+}
+
+fn animate_player(
+    time: Res<Time>,
+    texture_atlases: Res<Assets<TextureAtlas>>,
+    mut query: Query<(
+        &mut PlayerAnimationTimer,
+        &mut TextureAtlasSprite,
+        &Handle<TextureAtlas>,
+        &Velocity,
+    )>,
+) {
+    for (mut timer, mut sprite, texture_atlas_handle, velocity) in &mut query {
+        if velocity.linvel.length() <= 10.0 {
+            continue;
+        }
         timer.tick(time.delta());
         if timer.just_finished() {
             let texture_atlas = texture_atlases.get(texture_atlas_handle).unwrap();
@@ -290,7 +315,8 @@ fn main() {
         .add_startup_system(spawn_bat)
         .add_system(move_player)
         .add_system(move_towards_player.after(move_player))
-        .add_system(animate_loops.after(move_player))
+        .add_system(animate_loops.after(move_towards_player))
+        .add_system(animate_player.after(move_player))
         .add_system(player_enemy_collisions.after(move_player))
         .add_system(animate_hp_bar.after(player_enemy_collisions))
         .add_system(launch_fireball.after(move_towards_player))
