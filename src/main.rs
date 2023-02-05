@@ -340,14 +340,14 @@ fn attack_enemy_collisions(
     rapier_context: Res<RapierContext>,
     attack_query: Query<Entity, With<Attack>>,
 ) {
-    for attack_entity in attack_query.iter() {
+    'attack_loop: for attack_entity in attack_query.iter() {
         for (collider1, collider2, intersecting) in rapier_context.intersections_with(attack_entity)
         {
             if intersecting {
                 commands.entity(collider1).despawn();
                 commands.entity(collider2).despawn();
                 // Only kill the first enemy that gets hit.
-                continue;
+                continue 'attack_loop;
             }
         }
     }
