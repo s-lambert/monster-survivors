@@ -2,6 +2,7 @@ use bevy::prelude::*;
 use bevy::sprite::*;
 use bevy::utils::HashMap;
 use bevy_rapier2d::prelude::*;
+use rand::Rng;
 use std::f32::consts::PI;
 
 #[derive(Component, Deref, DerefMut)]
@@ -154,12 +155,24 @@ fn spawn_enemies(
     asset_server: Res<AssetServer>,
     mut texture_atlases: ResMut<Assets<TextureAtlas>>,
     time: Res<Time>,
-    mut query: Query<&mut EnemySpawner>,
+    mut enemy_spawner_query: Query<&mut EnemySpawner>,
+    player_transform_query: Query<&Transform, With<Player>>,
 ) {
-    for mut enemy_spawner in &mut query {
+    let Some(player_transform) = player_transform_query.iter().next() else { return };
+    let mut rng = rand::thread_rng();
+    for mut enemy_spawner in &mut enemy_spawner_query {
         enemy_spawner.timer.tick(time.delta());
         if enemy_spawner.timer.just_finished() {
-            spawn_bat(&mut commands, &asset_server, &mut texture_atlases);
+            let rotation = rng.gen_range(0.0..PI * 2.0);
+            let point_on_circle = Vec2::new(rotation.cos(), rotation.sin());
+            let point_around_player =
+                player_transform.translation + (point_on_circle * 500.0).extend(0.0);
+            spawn_bat(
+                &mut commands,
+                &asset_server,
+                &mut texture_atlases,
+                point_around_player,
+            );
         }
     }
 }
@@ -168,17 +181,18 @@ fn spawn_bat(
     commands: &mut Commands,
     asset_server: &Res<AssetServer>,
     texture_atlases: &mut ResMut<Assets<TextureAtlas>>,
+    translation: Vec3,
 ) {
     let spritesheet_handle = asset_server.load("bat-sheet.png");
     let texture_atlas =
         TextureAtlas::from_grid(spritesheet_handle, Vec2::new(24.0, 24.0), 4, 1, None, None);
+
     commands.spawn((
         Enemy,
         SpriteSheetBundle {
             texture_atlas: texture_atlases.add(texture_atlas),
             transform: Transform {
-                // TODO: Spawn outside of scene
-                translation: Vec3::new(200.0, 200.0, 1.0),
+                translation: translation,
                 scale: Vec3::splat(1.5),
                 ..default()
             },
