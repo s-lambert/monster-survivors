@@ -163,10 +163,12 @@ fn spawn_enemies(
     for mut enemy_spawner in &mut enemy_spawner_query {
         enemy_spawner.timer.tick(time.delta());
         if enemy_spawner.timer.just_finished() {
+            let window_width: f32 = 250.0;
+            let radius = (window_width.powf(2.0) + window_width.powf(2.0)).sqrt() + 10.0;
             let rotation = rng.gen_range(0.0..PI * 2.0);
             let point_on_circle = Vec2::new(rotation.cos(), rotation.sin());
             let point_around_player =
-                player_transform.translation + (point_on_circle * 500.0).extend(0.0);
+                player_transform.translation + (point_on_circle * radius).extend(0.0);
             spawn_bat(
                 &mut commands,
                 &asset_server,
