@@ -5,6 +5,11 @@ use bevy_rapier2d::prelude::*;
 use rand::Rng;
 use std::f32::consts::PI;
 
+#[derive(Debug, PartialEq, Eq, Hash, Copy, Clone)]
+enum GameState {
+    Playing,
+}
+
 #[derive(Component, Deref, DerefMut)]
 struct PlayerAnimationTimer(Timer);
 
@@ -423,6 +428,7 @@ fn camera_follow_player(
 
 fn main() {
     App::new()
+        .add_state(GameState::Playing)
         .add_plugins(
             DefaultPlugins
                 .set(ImagePlugin::default_nearest())
@@ -444,18 +450,24 @@ fn main() {
         .add_plugin(RapierPhysicsPlugin::<NoUserData>::pixels_per_meter(100.0))
         .add_plugin(RapierDebugRenderPlugin::default())
         .add_startup_system(global_setup)
-        .add_startup_system(setup_background)
-        .add_startup_system(setup_player)
-        .add_startup_system(setup_spawns)
-        .add_system(spawn_enemies)
-        .add_system(move_player)
-        .add_system(move_towards_player.after(move_player))
-        .add_system(animate_loops.after(move_towards_player))
-        .add_system(animate_player.after(move_player))
-        .add_system(player_enemy_collisions.after(move_player))
-        .add_system(animate_hp_bar.after(player_enemy_collisions))
-        .add_system(launch_fireball.after(move_towards_player))
-        .add_system(attack_enemy_collisions)
+        .add_system_set(
+            SystemSet::on_enter(GameState::Playing)
+                .with_system(setup_background)
+                .with_system(setup_player)
+                .with_system(setup_spawns),
+        )
+        .add_system_set(
+            SystemSet::on_update(GameState::Playing)
+                .with_system(spawn_enemies)
+                .with_system(move_player)
+                .with_system(move_towards_player)
+                .with_system(animate_loops)
+                .with_system(animate_player)
+                .with_system(launch_fireball)
+                .with_system(attack_enemy_collisions)
+                .with_system(player_enemy_collisions.after(attack_enemy_collisions))
+                .with_system(animate_hp_bar.after(player_enemy_collisions)),
+        )
         // TOOD: Not sure if this is the right place to add it, see if there's a way to add after a plugin.
         .add_system_to_stage(CoreStage::PostUpdate, camera_follow_player)
         .add_system(bevy::window::close_on_esc)
