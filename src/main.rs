@@ -8,6 +8,7 @@ use std::f32::consts::PI;
 #[derive(Debug, PartialEq, Eq, Hash, Copy, Clone)]
 enum GameState {
     Playing,
+    Paused,
 }
 
 #[derive(Component, Deref, DerefMut)]
@@ -426,6 +427,30 @@ fn camera_follow_player(
     camera_transform.translation.y = player_transform.translation.y;
 }
 
+fn pause_game(
+    mut keyboard_input: ResMut<Input<KeyCode>>,
+    mut state: ResMut<State<GameState>>,
+    mut rapier_config: ResMut<RapierConfiguration>,
+) {
+    if keyboard_input.just_pressed(KeyCode::Space) {
+        rapier_config.physics_pipeline_active = false;
+        state.push(GameState::Paused).unwrap();
+        keyboard_input.reset(KeyCode::Space);
+    }
+}
+
+fn unpause_game(
+    mut keyboard_input: ResMut<Input<KeyCode>>,
+    mut state: ResMut<State<GameState>>,
+    mut rapier_config: ResMut<RapierConfiguration>,
+) {
+    if keyboard_input.just_pressed(KeyCode::Space) {
+        rapier_config.physics_pipeline_active = true;
+        state.pop().unwrap();
+        keyboard_input.reset(KeyCode::Space);
+    }
+}
+
 fn main() {
     App::new()
         .add_state(GameState::Playing)
@@ -458,6 +483,7 @@ fn main() {
         )
         .add_system_set(
             SystemSet::on_update(GameState::Playing)
+                .with_system(pause_game)
                 .with_system(spawn_enemies)
                 .with_system(move_player)
                 .with_system(move_towards_player)
@@ -468,6 +494,7 @@ fn main() {
                 .with_system(player_enemy_collisions.after(attack_enemy_collisions))
                 .with_system(animate_hp_bar.after(player_enemy_collisions)),
         )
+        .add_system_set(SystemSet::on_update(GameState::Paused).with_system(unpause_game))
         // TOOD: Not sure if this is the right place to add it, see if there's a way to add after a plugin.
         .add_system_to_stage(CoreStage::PostUpdate, camera_follow_player)
         .add_system(bevy::window::close_on_esc)
