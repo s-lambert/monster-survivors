@@ -373,24 +373,29 @@ fn launch_fireball(
     player_transform_query: Query<&Transform, With<Player>>,
     enemy_transform_query: Query<&Transform, With<Enemy>>,
 ) {
-    let Some(player_transform) = player_transform_query.iter().next() else { return };
-    // TODO: Change system to find closest enemy.
-    let Some(enemy_transform) = enemy_transform_query.iter().next() else { return };
     let Some(mut timer) = timer_query.iter_mut().next() else { return };
 
     timer.tick(time.delta());
     if timer.just_finished() {
-        let player_position = player_transform.translation.truncate();
-        let enemy_position = enemy_transform.translation.truncate();
-        let direction = enemy_position - player_position;
-        let rotation_radians = direction.y.atan2(direction.x) + PI / 2.0;
+        let Some(player_position) = player_transform_query.iter().next().map(|transform| transform.translation.truncate()) else { return };
+        let Some(relative_enemy_position) = enemy_transform_query.iter()
+            .map(|transform| transform.translation.truncate() - player_position)
+            .reduce(|closest_relative_position, relative_position| {
+                if relative_position.length() < closest_relative_position.length() {
+                    relative_position
+                } else {
+                    closest_relative_position
+                }
+            }) else { return };
+        let rotation_radians =
+            relative_enemy_position.y.atan2(relative_enemy_position.x) + PI / 2.0;
 
         commands.spawn((
             Attack,
             SpriteBundle {
                 texture: asset_server.load("effects/fireball.png"),
                 transform: Transform {
-                    translation: player_transform.translation.clone(),
+                    translation: player_position.extend(1.0),
                     rotation: Quat::from_euler(EulerRot::XYZ, 0.0, 0.0, rotation_radians),
                     ..default()
                 },
@@ -400,7 +405,7 @@ fn launch_fireball(
             Sensor,
             Collider::ball(10.0),
             CollisionGroups::new(Group::GROUP_4, Group::GROUP_2),
-            Velocity::linear(direction.normalize() * 200.0),
+            Velocity::linear(relative_enemy_position.normalize() * 200.0),
         ));
     }
 }
