@@ -77,7 +77,7 @@ fn setup_player(
             FireballTimer(Timer::from_seconds(0.5, TimerMode::Repeating)),
             RigidBody::Dynamic,
             Collider::cuboid(8.0, 10.0),
-            CollisionGroups::new(Group::GROUP_1, Group::GROUP_2),
+            CollisionGroups::new(Group::GROUP_1, Group::GROUP_2 | Group::GROUP_5),
             LockedAxes::ROTATION_LOCKED,
             // Make it so the player stays stationary when colliding with enemies.
             Dominance::group(10),
@@ -370,6 +370,24 @@ fn attack_enemy_collisions(
     }
 }
 
+fn pickup_gems(
+    mut commands: Commands,
+    rapier_context: Res<RapierContext>,
+    player_query: Query<Entity, With<Player>>,
+) {
+    let Some(player_entity) = player_query.iter().next() else { return };
+    for (collider1, collider2, intersecting) in rapier_context.intersections_with(player_entity) {
+        if intersecting {
+            let gem_entity = if collider1 == player_entity {
+                collider2
+            } else {
+                collider1
+            };
+            commands.entity(gem_entity).despawn();
+        }
+    }
+}
+
 fn spawn_gem(commands: &mut Commands, asset_server: &Res<AssetServer>, enemy_position: Vec3) {
     commands.spawn((
         SpriteBundle {
@@ -519,6 +537,7 @@ fn main() {
                 .with_system(animate_player)
                 .with_system(launch_fireball)
                 .with_system(attack_enemy_collisions)
+                .with_system(pickup_gems)
                 .with_system(player_enemy_collisions.after(attack_enemy_collisions))
                 .with_system(animate_hp_bar.after(player_enemy_collisions)),
         )
