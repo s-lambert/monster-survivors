@@ -345,13 +345,22 @@ fn player_enemy_collisions(
 
 fn attack_enemy_collisions(
     mut commands: Commands,
+    asset_server: Res<AssetServer>,
     rapier_context: Res<RapierContext>,
     attack_query: Query<Entity, With<Attack>>,
+    enemy_transform_query: Query<&Transform, With<Enemy>>,
 ) {
     'attack_loop: for attack_entity in attack_query.iter() {
         for (collider1, collider2, intersecting) in rapier_context.intersections_with(attack_entity)
         {
             if intersecting {
+                let enemy_entity = if collider1 == attack_entity {
+                    collider2
+                } else {
+                    collider1
+                };
+                let Ok(enemy_transform) = enemy_transform_query.get(enemy_entity) else { continue 'attack_loop };
+                spawn_gem(&mut commands, &asset_server, enemy_transform.translation);
                 commands.entity(collider1).despawn();
                 commands.entity(collider2).despawn();
                 // Only kill the first enemy that gets hit.
@@ -359,6 +368,25 @@ fn attack_enemy_collisions(
             }
         }
     }
+}
+
+fn spawn_gem(commands: &mut Commands, asset_server: &Res<AssetServer>, enemy_position: Vec3) {
+    commands.spawn((
+        SpriteBundle {
+            texture: asset_server.load("gem.png"),
+            transform: Transform {
+                translation: enemy_position,
+                scale: Vec3::splat(0.6),
+                ..default()
+            },
+            ..default()
+        },
+        RigidBody::Dynamic,
+        Sensor,
+        Collider::ball(10.0),
+        CollisionGroups::new(Group::GROUP_5, Group::GROUP_1),
+        Velocity::default(),
+    ));
 }
 
 fn animate_hp_bar(
