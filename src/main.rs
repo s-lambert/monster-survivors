@@ -418,7 +418,7 @@ fn animate_hp_bar(
 }
 
 fn launch_fireball(
-    mut commands: Commands,
+    commands: Commands,
     time: Res<Time>,
     asset_server: Res<AssetServer>,
     mut timer_query: Query<&mut FireballTimer>,
@@ -442,24 +442,40 @@ fn launch_fireball(
         let rotation_radians =
             relative_enemy_position.y.atan2(relative_enemy_position.x) + PI / 2.0;
 
-        commands.spawn((
-            Attack,
-            SpriteBundle {
-                texture: asset_server.load("effects/fireball.png"),
-                transform: Transform {
-                    translation: player_position.extend(1.0),
-                    rotation: Quat::from_euler(EulerRot::XYZ, 0.0, 0.0, rotation_radians),
-                    ..default()
-                },
+        spawn_fireball(
+            commands,
+            asset_server,
+            player_position.extend(1.0),
+            rotation_radians,
+            relative_enemy_position.normalize(),
+        );
+    }
+}
+
+fn spawn_fireball(
+    mut commands: Commands,
+    asset_server: Res<AssetServer>,
+    position: Vec3,
+    rotation_radians: f32,
+    direction: Vec2,
+) {
+    commands.spawn((
+        Attack,
+        SpriteBundle {
+            texture: asset_server.load("effects/fireball.png"),
+            transform: Transform {
+                translation: position,
+                rotation: Quat::from_euler(EulerRot::XYZ, 0.0, 0.0, rotation_radians),
                 ..default()
             },
-            RigidBody::Dynamic,
-            Sensor,
-            Collider::ball(10.0),
-            CollisionGroups::new(Group::GROUP_4, Group::GROUP_2),
-            Velocity::linear(relative_enemy_position.normalize() * 200.0),
-        ));
-    }
+            ..default()
+        },
+        RigidBody::Dynamic,
+        Sensor,
+        Collider::ball(10.0),
+        CollisionGroups::new(Group::GROUP_4, Group::GROUP_2),
+        Velocity::linear(direction * 200.0),
+    ));
 }
 
 fn camera_follow_player(
