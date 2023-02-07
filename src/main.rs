@@ -22,6 +22,9 @@ struct FireballTimer(Timer);
 
 #[derive(Component)]
 struct Player {
+    lvl: i32,
+    curr_exp: i32,
+    next_exp: i32,
     max_hp: i32,
     hp: i32,
 }
@@ -61,6 +64,9 @@ fn setup_player(
     commands
         .spawn((
             Player {
+                lvl: 1,
+                curr_exp: 0,
+                next_exp: 100,
                 max_hp: 100,
                 hp: 100,
             },
@@ -373,9 +379,9 @@ fn attack_enemy_collisions(
 fn pickup_gems(
     mut commands: Commands,
     rapier_context: Res<RapierContext>,
-    player_query: Query<Entity, With<Player>>,
+    mut player_query: Query<(Entity, &mut Player)>,
 ) {
-    let Some(player_entity) = player_query.iter().next() else { return };
+    let Some((player_entity, mut player)) = player_query.iter_mut().next() else { return };
     for (collider1, collider2, intersecting) in rapier_context.intersections_with(player_entity) {
         if intersecting {
             let gem_entity = if collider1 == player_entity {
@@ -384,7 +390,18 @@ fn pickup_gems(
                 collider1
             };
             commands.entity(gem_entity).despawn();
+            player.curr_exp += 40;
         }
+    }
+}
+
+fn level_up(mut player_query: Query<&mut Player>) {
+    let Some(mut player) = player_query.iter_mut().next() else { return };
+    if player.curr_exp >= player.next_exp {
+        player.curr_exp -= player.next_exp;
+        player.lvl += 1;
+        player.next_exp = (player.lvl.ilog(10) as i32 + player.lvl) * 100;
+        dbg!("Levelled up {player.next_exp} to next level.");
     }
 }
 
@@ -554,6 +571,7 @@ fn main() {
                 .with_system(launch_fireball)
                 .with_system(attack_enemy_collisions)
                 .with_system(pickup_gems)
+                .with_system(level_up.after(pickup_gems))
                 .with_system(player_enemy_collisions.after(attack_enemy_collisions))
                 .with_system(animate_hp_bar.after(player_enemy_collisions)),
         )
