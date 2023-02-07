@@ -412,8 +412,8 @@ fn level_up(mut player_query: Query<&mut Player>) {
     if player.curr_exp >= player.next_exp {
         player.curr_exp -= player.next_exp;
         player.lvl += 1;
-        player.next_exp = (player.lvl.ilog(10) as i32 + player.lvl) * 100;
-        dbg!("Levelled up {player.next_exp} to next level.");
+        player.next_exp = ((((player.lvl as f32).log(10.0)) + player.lvl as f32) * 100.0) as i32;
+        dbg!("Levelled up {} to next level.", player.next_exp);
     }
 }
 
