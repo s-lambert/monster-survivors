@@ -46,8 +46,15 @@ struct Enemy;
 #[derive(Component)]
 struct Attack;
 
+const WINDOW_SIZE: f32 = 500.0;
 const PLAYER_SPEED: f32 = 100.0;
+const PLAYER_HP_WIDTH: f32 = 18.0;
+const FIREBALL_COOLDOWN: f32 = 0.5;
+const FIREBALL_SPEED: f32 = 200.0;
 const ENEMY_SPEED: f32 = 80.0;
+const ENEMY_DAMAGE: i32 = 5;
+const ENEMY_DAMAGE_COOLDOWN: f32 = 0.5;
+const GEM_EXP: i32 = 40;
 
 fn global_setup(mut commands: Commands) {
     commands.spawn(Camera2dBundle::default());
@@ -80,7 +87,7 @@ fn setup_player(
                 ..default()
             },
             PlayerAnimationTimer(Timer::from_seconds(0.2, TimerMode::Repeating)),
-            FireballTimer(Timer::from_seconds(0.5, TimerMode::Repeating)),
+            FireballTimer(Timer::from_seconds(FIREBALL_COOLDOWN, TimerMode::Repeating)),
             RigidBody::Dynamic,
             Collider::cuboid(8.0, 10.0),
             CollisionGroups::new(Group::GROUP_1, Group::GROUP_2 | Group::GROUP_5),
@@ -123,6 +130,7 @@ fn setup_player(
 }
 
 fn setup_background(mut commands: Commands, asset_server: Res<AssetServer>) {
+    // TODO: This only covers a 3x3 grid, it needs to be endless.
     let world_size = 3;
     let background_size = 1024.0;
     let starting_point = -(background_size * ((world_size - 1) as f32) / 2.0);
@@ -175,8 +183,9 @@ fn spawn_enemies(
     for mut enemy_spawner in &mut enemy_spawner_query {
         enemy_spawner.timer.tick(time.delta());
         if enemy_spawner.timer.just_finished() {
-            let window_width: f32 = 250.0;
-            let radius = (window_width.powf(2.0) + window_width.powf(2.0)).sqrt() + 10.0;
+            let distance_from_center: f32 = WINDOW_SIZE / 2.0;
+            let radius =
+                (distance_from_center.powf(2.0) + distance_from_center.powf(2.0)).sqrt() + 10.0;
             let rotation = rng.gen_range(0.0..PI * 2.0);
             let point_on_circle = Vec2::new(rotation.cos(), rotation.sin());
             let point_around_player =
@@ -253,6 +262,7 @@ fn animate_player(
     )>,
 ) {
     for (mut timer, mut sprite, texture_atlas_handle, velocity) in &mut query {
+        // 10.0 is an arbitrary number that the velocity will reach while slowing down.
         if velocity.linvel.length() <= 10.0 {
             continue;
         }
@@ -342,8 +352,10 @@ fn player_enemy_collisions(
         // TODO: Could be done another way, maybe filter groups in rapier?
         if enemy_query.get(enemy_collider).is_ok() {
             if !player_hit_cooldown.0.contains_key(&enemy_collider) {
-                player.hp -= 5;
-                player_hit_cooldown.0.insert(enemy_collider, 0.5);
+                player.hp -= ENEMY_DAMAGE;
+                player_hit_cooldown
+                    .0
+                    .insert(enemy_collider, ENEMY_DAMAGE_COOLDOWN);
             }
         }
     }
@@ -390,7 +402,7 @@ fn pickup_gems(
                 collider1
             };
             commands.entity(gem_entity).despawn();
-            player.curr_exp += 40;
+            player.curr_exp += GEM_EXP;
         }
     }
 }
@@ -431,7 +443,7 @@ fn animate_hp_bar(
     let Some(player) = player_query.iter().next() else { return };
     let mut bar_transform = bar_transform_query.single_mut();
 
-    bar_transform.scale.x = (player.hp as f32 / player.max_hp as f32).max(0.0) * 18.0;
+    bar_transform.scale.x = (player.hp as f32 / player.max_hp as f32).max(0.0) * PLAYER_HP_WIDTH;
 }
 
 fn launch_fireball(
@@ -491,7 +503,7 @@ fn spawn_fireball(
         Sensor,
         Collider::ball(10.0),
         CollisionGroups::new(Group::GROUP_4, Group::GROUP_2),
-        Velocity::linear(direction * 200.0),
+        Velocity::linear(direction * FIREBALL_SPEED),
     ));
 }
 
@@ -539,8 +551,8 @@ fn main() {
                 .set(WindowPlugin {
                     window: WindowDescriptor {
                         title: "Monster Survivors!".to_string(),
-                        width: 500.0,
-                        height: 500.0,
+                        width: WINDOW_SIZE,
+                        height: WINDOW_SIZE,
                         ..default()
                     },
                     ..default()
