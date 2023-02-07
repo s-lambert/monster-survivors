@@ -431,7 +431,7 @@ fn animate_hp_bar(
     let Some(player) = player_query.iter().next() else { return };
     let mut bar_transform = bar_transform_query.single_mut();
 
-    bar_transform.scale.x = (player.hp as f32 / player.max_hp as f32) * 18.0;
+    bar_transform.scale.x = (player.hp as f32 / player.max_hp as f32).max(0.0) * 18.0;
 }
 
 fn launch_fireball(
