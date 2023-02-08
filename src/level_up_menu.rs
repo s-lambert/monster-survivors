@@ -13,14 +13,16 @@ pub fn add_level_up_menu(mut commands: Commands, asset_server: Res<AssetServer>)
             NodeBundle {
                 style: Style {
                     flex_direction: FlexDirection::Column,
-                    margin: UiRect {
-                        top: Val::Px(100.0),
-                        ..default()
-                    },
                     size: Size {
                         width: Val::Percent(100.0),
-                        height: Val::Percent(100.0),
+                        height: Val::Percent(80.0),
                     },
+                    margin: UiRect {
+                        top: Val::Px(60.0),
+                        bottom: Val::Px(10.0),
+                        ..default()
+                    },
+                    padding: UiRect::all(Val::Px(10.0)),
                     ..default()
                 },
                 ..default()
@@ -31,9 +33,15 @@ pub fn add_level_up_menu(mut commands: Commands, asset_server: Res<AssetServer>)
                 .spawn(NodeBundle {
                     style: Style {
                         size: Size {
-                            height: Val::Px(40.0),
                             width: Val::Percent(100.0),
+                            height: Val::Px(40.0),
                         },
+                        margin: UiRect {
+                            bottom: Val::Px(16.0),
+                            ..default()
+                        },
+                        justify_content: JustifyContent::Center,
+                        align_items: AlignItems::Center,
                         ..default()
                     },
                     background_color: Color::rgb(0.15, 0.15, 1.00).into(),
@@ -53,9 +61,10 @@ pub fn add_level_up_menu(mut commands: Commands, asset_server: Res<AssetServer>)
                     style: Style {
                         flex_direction: FlexDirection::Row,
                         size: Size {
-                            height: Val::Auto,
                             width: Val::Percent(100.0),
+                            ..default()
                         },
+                        flex_grow: 1.0,
                         ..default()
                     },
                     ..default()
@@ -70,6 +79,7 @@ pub fn add_level_up_menu(mut commands: Commands, asset_server: Res<AssetServer>)
                                         height: Val::Percent(100.0),
                                         ..default()
                                     },
+                                    flex_grow: 1.0,
                                     ..default()
                                 },
                                 background_color: Color::rgb(0.15, 0.15, 1.00).into(),
@@ -91,9 +101,16 @@ pub fn add_level_up_menu(mut commands: Commands, asset_server: Res<AssetServer>)
                             ButtonBundle {
                                 style: Style {
                                     size: Size {
+                                        width: Val::Auto,
                                         height: Val::Percent(100.0),
                                         ..default()
                                     },
+                                    margin: UiRect {
+                                        left: Val::Px(10.0),
+                                        right: Val::Px(10.0),
+                                        ..default()
+                                    },
+                                    flex_grow: 1.0,
                                     ..default()
                                 },
                                 background_color: Color::rgb(0.15, 0.15, 1.00).into(),
@@ -115,9 +132,11 @@ pub fn add_level_up_menu(mut commands: Commands, asset_server: Res<AssetServer>)
                             ButtonBundle {
                                 style: Style {
                                     size: Size {
+                                        width: Val::Auto,
                                         height: Val::Percent(100.0),
                                         ..default()
                                     },
+                                    flex_grow: 1.0,
                                     ..default()
                                 },
                                 background_color: Color::rgb(0.15, 0.15, 1.00).into(),
