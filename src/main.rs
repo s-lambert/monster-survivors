@@ -34,6 +34,9 @@ struct Player {
 #[derive(Component)]
 struct PlayerHpBar;
 
+#[derive(Component)]
+struct PlayerExpBar;
+
 #[derive(Resource, Deref, DerefMut)]
 struct PlayerHitCooldown(HashMap<Entity, f32>);
 
@@ -51,6 +54,7 @@ struct Attack;
 const WINDOW_SIZE: f32 = 500.0;
 const PLAYER_SPEED: f32 = 100.0;
 const PLAYER_HP_WIDTH: f32 = 18.0;
+const PLAYER_EXP_WIDTH: f32 = 220.0;
 const FIREBALL_COOLDOWN: f32 = 0.5;
 const FIREBALL_SPEED: f32 = 200.0;
 const ENEMY_SPEED: f32 = 80.0;
@@ -126,6 +130,27 @@ fn setup_player(
                     transform: Transform {
                         scale: Vec3::new(18.0, 2.0, 0.0),
                         translation: Vec3::new(-9.0, -14.0, 1.0),
+                        ..default()
+                    },
+                    ..default()
+                },
+            ));
+            parent.spawn((
+                PlayerExpBar,
+                SpriteBundle {
+                    sprite: Sprite {
+                        color: Color::rgb(0.0, 0.0, 1.0),
+                        anchor: Anchor::TopLeft,
+                        ..default()
+                    },
+                    transform: Transform {
+                        scale: Vec3::new(PLAYER_EXP_WIDTH, 10.0, 0.0),
+                        // TODO: Look into why (-110, 110) is close to the corner of the screen
+                        translation: Vec3::new(
+                            -PLAYER_EXP_WIDTH / 2.0,
+                            PLAYER_EXP_WIDTH / 2.0,
+                            100.0,
+                        ),
                         ..default()
                     },
                     ..default()
@@ -452,6 +477,17 @@ fn animate_hp_bar(
     bar_transform.scale.x = (player.hp as f32 / player.max_hp as f32).max(0.0) * PLAYER_HP_WIDTH;
 }
 
+fn animate_exp_bar(
+    player_query: Query<&Player, Changed<Player>>,
+    mut bar_transform_query: Query<&mut Transform, With<PlayerExpBar>>,
+) {
+    let Some(player) = player_query.iter().next() else { return };
+    let mut bar_transform = bar_transform_query.single_mut();
+
+    bar_transform.scale.x =
+        (player.curr_exp as f32 / player.next_exp as f32).min(1.0) * PLAYER_EXP_WIDTH;
+}
+
 fn launch_fireball(
     commands: Commands,
     time: Res<Time>,
@@ -589,7 +625,8 @@ fn main() {
                 .with_system(launch_fireball)
                 .with_system(attack_enemy_collisions)
                 .with_system(pickup_gems)
-                .with_system(level_up.after(pickup_gems))
+                .with_system(animate_exp_bar.after(pickup_gems))
+                .with_system(level_up.after(animate_exp_bar))
                 .with_system(player_enemy_collisions.after(attack_enemy_collisions))
                 .with_system(animate_hp_bar.after(player_enemy_collisions)),
         )
