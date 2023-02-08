@@ -308,16 +308,16 @@ fn animate_player(
 
 // TODO: Replace with a spring https://theorangeduck.com/page/spring-roll-call
 fn lerp(x: f32, y: f32, t: f32) -> f32 {
-    return (1.0 - t) * x + t * y;
+    (1.0 - t) * x + t * y
 }
 
 fn inverse_lerp(x: f32, y: f32, v: f32) -> f32 {
-    return (v - x) / (y - x);
+    (v - x) / (y - x)
 }
 
 fn remap(input_min: f32, input_max: f32, output_min: f32, output_max: f32, value: f32) -> f32 {
     let t = inverse_lerp(input_min, input_max, value);
-    return lerp(output_min, output_max, t);
+    lerp(output_min, output_max, t)
 }
 
 fn move_player(
@@ -325,7 +325,7 @@ fn move_player(
     keyboard_input: Res<Input<KeyCode>>,
     mut query: Query<&mut Velocity, With<Player>>,
 ) {
-    let Some(mut player_velocity) = query.iter_mut().next() else { return; };
+    let Some(mut player_velocity) = query.iter_mut().next() else { return };
 
     if keyboard_input.pressed(KeyCode::Left) {
         player_velocity.linvel.x = lerp(player_velocity.linvel.x, -PLAYER_SPEED, 0.5);
