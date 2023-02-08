@@ -5,6 +5,8 @@ use bevy_rapier2d::prelude::*;
 use rand::Rng;
 use std::f32::consts::PI;
 
+mod physics_groups;
+
 #[derive(Debug, PartialEq, Eq, Hash, Copy, Clone)]
 enum GameState {
     Playing,
@@ -90,7 +92,10 @@ fn setup_player(
             FireballTimer(Timer::from_seconds(FIREBALL_COOLDOWN, TimerMode::Repeating)),
             RigidBody::Dynamic,
             Collider::cuboid(8.0, 10.0),
-            CollisionGroups::new(Group::GROUP_1, Group::GROUP_2 | Group::GROUP_5),
+            CollisionGroups::new(
+                physics_groups::PLAYER_GROUP,
+                physics_groups::ENEMY_GROUP | physics_groups::PICKUP_GROUP,
+            ),
             LockedAxes::ROTATION_LOCKED,
             // Make it so the player stays stationary when colliding with enemies.
             Dominance::group(10),
@@ -225,8 +230,10 @@ fn spawn_bat(
         RigidBody::Dynamic,
         Collider::cuboid(8.0, 8.0),
         CollisionGroups::new(
-            Group::GROUP_2,
-            Group::GROUP_1 | Group::GROUP_2 | Group::GROUP_4,
+            physics_groups::ENEMY_GROUP,
+            physics_groups::ENEMY_GROUP
+                | physics_groups::PLAYER_GROUP
+                | physics_groups::ATTACK_GROUP,
         ),
         LockedAxes::ROTATION_LOCKED,
         Velocity::default(),
@@ -430,7 +437,7 @@ fn spawn_gem(commands: &mut Commands, asset_server: &Res<AssetServer>, enemy_pos
         RigidBody::Dynamic,
         Sensor,
         Collider::ball(10.0),
-        CollisionGroups::new(Group::GROUP_5, Group::GROUP_1),
+        CollisionGroups::new(physics_groups::PICKUP_GROUP, physics_groups::PLAYER_GROUP),
         Velocity::default(),
     ));
 }
@@ -501,7 +508,7 @@ fn spawn_fireball(
         RigidBody::Dynamic,
         Sensor,
         Collider::ball(10.0),
-        CollisionGroups::new(Group::GROUP_4, Group::GROUP_2),
+        CollisionGroups::new(physics_groups::ATTACK_GROUP, physics_groups::ENEMY_GROUP),
         Velocity::linear(direction * FIREBALL_SPEED),
     ));
 }
