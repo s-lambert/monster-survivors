@@ -32,7 +32,7 @@ struct Player {
 #[derive(Component)]
 struct PlayerHpBar;
 
-#[derive(Resource)]
+#[derive(Resource, Deref, DerefMut)]
 struct PlayerHitCooldown(HashMap<Entity, f32>);
 
 #[derive(Component)]
@@ -335,7 +335,6 @@ fn player_enemy_collisions(
 
     let delta_seconds = time.delta_seconds();
     player_hit_cooldown
-        .0
         .drain_filter(|_k, v| {
             *v -= delta_seconds;
             *v <= 0.0
@@ -351,7 +350,7 @@ fn player_enemy_collisions(
 
         // TODO: Could be done another way, maybe filter groups in rapier?
         if enemy_query.get(enemy_collider).is_ok() {
-            if !player_hit_cooldown.0.contains_key(&enemy_collider) {
+            if !player_hit_cooldown.contains_key(&enemy_collider) {
                 player.hp -= ENEMY_DAMAGE;
                 player_hit_cooldown
                     .0
