@@ -5,11 +5,13 @@ use bevy_rapier2d::prelude::*;
 use rand::Rng;
 use std::f32::consts::PI;
 
+mod level_up_menu;
 mod physics_groups;
 
 #[derive(Debug, PartialEq, Eq, Hash, Copy, Clone)]
 enum GameState {
     Playing,
+    LevellingUp,
     Paused,
 }
 
@@ -438,13 +440,19 @@ fn pickup_gems(
     }
 }
 
-fn level_up(mut player_query: Query<&mut Player>) {
+fn level_up(
+    mut player_query: Query<&mut Player>,
+    mut rapier_config: ResMut<RapierConfiguration>,
+    mut state: ResMut<State<GameState>>,
+) {
     let Some(mut player) = player_query.iter_mut().next() else { return };
     if player.curr_exp >= player.next_exp {
-        player.curr_exp -= player.next_exp;
         player.lvl += 1;
+        player.curr_exp -= player.next_exp;
         player.next_exp = ((((player.lvl as f32).log(10.0)) + player.lvl as f32) * 100.0) as i32;
-        dbg!("Levelled up {} to next level.", player.next_exp);
+
+        rapier_config.physics_pipeline_active = false;
+        state.push(GameState::LevellingUp).unwrap();
     }
 }
 
@@ -624,11 +632,25 @@ fn main() {
                 .with_system(animate_player)
                 .with_system(launch_fireball)
                 .with_system(attack_enemy_collisions)
-                .with_system(pickup_gems)
+                .with_system(level_up)
+                .with_system(pickup_gems.after(level_up))
                 .with_system(animate_exp_bar.after(pickup_gems))
-                .with_system(level_up.after(animate_exp_bar))
                 .with_system(player_enemy_collisions.after(attack_enemy_collisions))
                 .with_system(animate_hp_bar.after(player_enemy_collisions)),
+        )
+        .add_system_set(
+            SystemSet::on_enter(GameState::LevellingUp)
+                .with_system(level_up_menu::add_level_up_menu),
+        )
+        .add_system_set(
+            SystemSet::on_update(GameState::LevellingUp)
+                .with_system(level_up_menu::handle_choice)
+                // TODO: Remove when choices are added
+                .with_system(unpause_game),
+        )
+        .add_system_set(
+            SystemSet::on_exit(GameState::LevellingUp)
+                .with_system(level_up_menu::remove_level_up_menu),
         )
         .add_system_set(SystemSet::on_update(GameState::Paused).with_system(unpause_game))
         // TOOD: Not sure if this is the right place to add it, see if there's a way to add after a plugin.
