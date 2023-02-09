@@ -3,8 +3,10 @@ use bevy::prelude::*;
 #[derive(Component)]
 pub struct LevelUpMenu;
 
-#[derive(Component)]
-pub struct ItemChoice;
+#[derive(Component, Debug)]
+pub struct ItemChoice {
+    id: i32,
+}
 
 pub fn add_level_up_menu(mut commands: Commands, asset_server: Res<AssetServer>) {
     commands
@@ -72,7 +74,7 @@ pub fn add_level_up_menu(mut commands: Commands, asset_server: Res<AssetServer>)
                 .with_children(|items_container| {
                     items_container
                         .spawn((
-                            ItemChoice,
+                            ItemChoice { id: 1 },
                             ButtonBundle {
                                 style: Style {
                                     size: Size {
@@ -97,7 +99,7 @@ pub fn add_level_up_menu(mut commands: Commands, asset_server: Res<AssetServer>)
                         });
                     items_container
                         .spawn((
-                            ItemChoice,
+                            ItemChoice { id: 2 },
                             ButtonBundle {
                                 style: Style {
                                     size: Size {
@@ -128,7 +130,7 @@ pub fn add_level_up_menu(mut commands: Commands, asset_server: Res<AssetServer>)
                         });
                     items_container
                         .spawn((
-                            ItemChoice,
+                            ItemChoice { id: 3 },
                             ButtonBundle {
                                 style: Style {
                                     size: Size {
@@ -161,6 +163,11 @@ pub fn remove_level_up_menu(mut commands: Commands, menu_query: Query<Entity, Wi
     commands.entity(menu_entity).despawn_recursive();
 }
 
-pub fn handle_choice() {
-    // TODO: Add choice detection + player updates.
+pub fn handle_choice(interaction_query: Query<(&Interaction, &ItemChoice), Changed<Interaction>>) {
+    for (interaction, item_choice) in &interaction_query {
+        if let Interaction::Clicked = interaction {
+            dbg!(interaction);
+            dbg!(item_choice);
+        }
+    }
 }
