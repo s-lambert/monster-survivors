@@ -21,8 +21,11 @@ struct PlayerAnimationTimer(Timer);
 #[derive(Component, Deref, DerefMut)]
 struct LoopAnimationTimer(Timer);
 
-#[derive(Component, Deref, DerefMut)]
-struct FireballTimer(Timer);
+#[derive(Component)]
+struct FireballWeapon {
+    base_dmg: i32,
+    spawn_timer: Timer,
+}
 
 #[derive(Component)]
 struct Player {
@@ -48,10 +51,14 @@ struct EnemySpawner {
 }
 
 #[derive(Component)]
-struct Enemy;
+struct Enemy {
+    hp: i32,
+}
 
 #[derive(Component)]
-struct Attack;
+struct Attack {
+    dmg: i32,
+}
 
 const WINDOW_SIZE: f32 = 500.0;
 const PLAYER_SPEED: f32 = 100.0;
@@ -95,7 +102,10 @@ fn setup_player(
                 ..default()
             },
             PlayerAnimationTimer(Timer::from_seconds(0.2, TimerMode::Repeating)),
-            FireballTimer(Timer::from_seconds(FIREBALL_COOLDOWN, TimerMode::Repeating)),
+            FireballWeapon {
+                base_dmg: 10,
+                spawn_timer: Timer::from_seconds(FIREBALL_COOLDOWN, TimerMode::Repeating),
+            },
             RigidBody::Dynamic,
             Collider::cuboid(8.0, 10.0),
             CollisionGroups::new(
@@ -243,7 +253,7 @@ fn spawn_bat(
         TextureAtlas::from_grid(spritesheet_handle, Vec2::new(24.0, 24.0), 4, 1, None, None);
 
     commands.spawn((
-        Enemy,
+        Enemy { hp: 10 },
         SpriteSheetBundle {
             texture_atlas: texture_atlases.add(texture_atlas),
             transform: Transform {
@@ -398,10 +408,10 @@ fn attack_enemy_collisions(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
     rapier_context: Res<RapierContext>,
-    attack_query: Query<Entity, With<Attack>>,
-    enemy_transform_query: Query<&Transform, With<Enemy>>,
+    attack_query: Query<(Entity, &Attack)>,
+    mut enemy_query: Query<(&mut Enemy, &Transform)>,
 ) {
-    'attack_loop: for attack_entity in attack_query.iter() {
+    'attack_loop: for (attack_entity, attack) in attack_query.iter() {
         for (collider1, collider2, intersecting) in rapier_context.intersections_with(attack_entity)
         {
             if intersecting {
@@ -410,11 +420,16 @@ fn attack_enemy_collisions(
                 } else {
                     collider1
                 };
-                let Ok(enemy_transform) = enemy_transform_query.get(enemy_entity) else { continue 'attack_loop };
-                spawn_gem(&mut commands, &asset_server, enemy_transform.translation);
-                commands.entity(collider1).despawn();
-                commands.entity(collider2).despawn();
-                // Only kill the first enemy that gets hit.
+                let Ok((mut enemy, enemy_transform)) = enemy_query.get_mut(enemy_entity) else { continue 'attack_loop };
+
+                enemy.hp -= attack.dmg;
+                if enemy.hp <= 0 {
+                    spawn_gem(&mut commands, &asset_server, enemy_transform.translation);
+                    commands.entity(enemy_entity).despawn();
+                }
+
+                // Only damage the first enemy that gets hit.
+                commands.entity(attack_entity).despawn();
                 continue 'attack_loop;
             }
         }
@@ -500,14 +515,14 @@ fn launch_fireball(
     commands: Commands,
     time: Res<Time>,
     asset_server: Res<AssetServer>,
-    mut timer_query: Query<&mut FireballTimer>,
+    mut weapon_query: Query<&mut FireballWeapon>,
     player_transform_query: Query<&Transform, With<Player>>,
     enemy_transform_query: Query<&Transform, With<Enemy>>,
 ) {
-    let Some(mut timer) = timer_query.iter_mut().next() else { return };
+    let Some(mut weapon) = weapon_query.iter_mut().next() else { return };
 
-    timer.tick(time.delta());
-    if timer.just_finished() {
+    weapon.spawn_timer.tick(time.delta());
+    if weapon.spawn_timer.just_finished() {
         let Some(player_position) = player_transform_query.iter().next().map(|transform| transform.translation.truncate()) else { return };
         let Some(relative_enemy_position) = enemy_transform_query.iter()
             .map(|transform| transform.translation.truncate() - player_position)
@@ -527,6 +542,7 @@ fn launch_fireball(
             player_position.extend(1.0),
             rotation_radians,
             relative_enemy_position.normalize(),
+            weapon.base_dmg,
         );
     }
 }
@@ -537,9 +553,10 @@ fn spawn_fireball(
     position: Vec3,
     rotation_radians: f32,
     direction: Vec2,
+    damage: i32,
 ) {
     commands.spawn((
-        Attack,
+        Attack { dmg: damage },
         SpriteBundle {
             texture: asset_server.load("effects/fireball.png"),
             transform: Transform {
