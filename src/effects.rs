@@ -49,7 +49,7 @@ pub fn animate_damage_numbers(
             *v -= delta_seconds;
             *v <= 0.0
         })
-        .for_each(|(key, _value)| {
+        .for_each(|(key, ..)| {
             commands.entity(key).despawn();
         });
 }
