@@ -5,6 +5,7 @@ use bevy_rapier2d::prelude::*;
 use rand::Rng;
 use std::f32::consts::PI;
 
+mod effects;
 mod level_up_menu;
 mod physics_groups;
 
@@ -396,9 +397,7 @@ fn player_enemy_collisions(
         if enemy_query.get(enemy_collider).is_ok() {
             if !player_hit_cooldown.contains_key(&enemy_collider) {
                 player.hp -= ENEMY_DAMAGE;
-                player_hit_cooldown
-                    .0
-                    .insert(enemy_collider, ENEMY_DAMAGE_COOLDOWN);
+                player_hit_cooldown.insert(enemy_collider, ENEMY_DAMAGE_COOLDOWN);
             }
         }
     }
@@ -410,6 +409,7 @@ fn attack_enemy_collisions(
     rapier_context: Res<RapierContext>,
     attack_query: Query<(Entity, &Attack)>,
     mut enemy_query: Query<(&mut Enemy, &Transform)>,
+    mut damage_number_writer: EventWriter<effects::DamageNumberEvent>,
 ) {
     'attack_loop: for (attack_entity, attack) in attack_query.iter() {
         for (collider1, collider2, intersecting) in rapier_context.intersections_with(attack_entity)
@@ -423,6 +423,11 @@ fn attack_enemy_collisions(
                 let Ok((mut enemy, enemy_transform)) = enemy_query.get_mut(enemy_entity) else { continue 'attack_loop };
 
                 enemy.hp -= attack.dmg;
+                damage_number_writer.send(effects::DamageNumberEvent {
+                    dmg: attack.dmg,
+                    position: enemy_transform.translation,
+                });
+
                 if enemy.hp <= 0 {
                     spawn_gem(&mut commands, &asset_server, enemy_transform.translation);
                     commands.entity(enemy_entity).despawn();
@@ -625,11 +630,13 @@ fn main() {
                     ..default()
                 }),
         )
+        .add_event::<effects::DamageNumberEvent>()
         .insert_resource(RapierConfiguration {
             gravity: Vect::new(0.0, 0.0),
             ..default()
         })
         .insert_resource(PlayerHitCooldown(HashMap::default()))
+        .insert_resource(effects::ActiveDamageEffects(HashMap::default()))
         .add_plugin(RapierPhysicsPlugin::<NoUserData>::pixels_per_meter(100.0))
         .add_plugin(RapierDebugRenderPlugin::default())
         .add_startup_system(global_setup)
@@ -649,6 +656,8 @@ fn main() {
                 .with_system(animate_player)
                 .with_system(launch_fireball)
                 .with_system(attack_enemy_collisions)
+                .with_system(effects::display_damage_numbers.after(attack_enemy_collisions))
+                .with_system(effects::animate_damage_numbers.after(effects::display_damage_numbers))
                 .with_system(level_up)
                 .with_system(pickup_gems.after(level_up))
                 .with_system(animate_exp_bar.after(pickup_gems))
