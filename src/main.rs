@@ -10,7 +10,7 @@ mod level_up_menu;
 mod physics_groups;
 
 #[derive(Debug, PartialEq, Eq, Hash, Copy, Clone)]
-enum GameState {
+pub enum GameState {
     Playing,
     LevellingUp,
     Paused,
@@ -669,10 +669,7 @@ fn main() {
                 .with_system(level_up_menu::add_level_up_menu),
         )
         .add_system_set(
-            SystemSet::on_update(GameState::LevellingUp)
-                .with_system(level_up_menu::handle_choice)
-                // TODO: Remove when choices are added
-                .with_system(unpause_game),
+            SystemSet::on_update(GameState::LevellingUp).with_system(level_up_menu::handle_choice),
         )
         .add_system_set(
             SystemSet::on_exit(GameState::LevellingUp)

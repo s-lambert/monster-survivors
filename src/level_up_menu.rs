@@ -1,4 +1,7 @@
 use bevy::prelude::*;
+use bevy_rapier2d::plugin::RapierConfiguration;
+
+use crate::GameState;
 
 #[derive(Component)]
 pub struct LevelUpMenu;
@@ -163,11 +166,19 @@ pub fn remove_level_up_menu(mut commands: Commands, menu_query: Query<Entity, Wi
     commands.entity(menu_entity).despawn_recursive();
 }
 
-pub fn handle_choice(interaction_query: Query<(&Interaction, &ItemChoice), Changed<Interaction>>) {
+pub fn handle_choice(
+    interaction_query: Query<(&Interaction, &ItemChoice), Changed<Interaction>>,
+    mut keyboard_input: ResMut<Input<KeyCode>>,
+    mut state: ResMut<State<GameState>>,
+    mut rapier_config: ResMut<RapierConfiguration>,
+) {
     for (interaction, item_choice) in &interaction_query {
         if let Interaction::Clicked = interaction {
             dbg!(interaction);
             dbg!(item_choice);
+            rapier_config.physics_pipeline_active = true;
+            state.pop().unwrap();
+            keyboard_input.reset(KeyCode::Space);
         }
     }
 }
