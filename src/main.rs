@@ -646,6 +646,7 @@ fn main() {
                 .with_system(launch_fireball)
                 .with_system(attack_enemy_collisions)
                 .with_system(effects::display_damage_numbers.after(attack_enemy_collisions))
+                .with_system(effects::animate_damage_numbers)
                 .with_system(effects::remove_damage_numbers.after(effects::display_damage_numbers))
                 .with_system(level_up)
                 .with_system(pickup_gems.after(level_up))
