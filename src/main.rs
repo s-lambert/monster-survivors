@@ -27,6 +27,7 @@ struct LoopAnimationTimer(Timer);
 #[derive(Component)]
 struct FireballWeapon {
     base_dmg: i32,
+    extra_dmg: i32,
     spawn_timer: Timer,
 }
 
@@ -60,7 +61,8 @@ struct Enemy {
 
 #[derive(Component)]
 struct Attack {
-    dmg: i32,
+    base_dmg: i32,
+    extra_dmg: i32,
 }
 
 const WINDOW_SIZE: f32 = 500.0;
@@ -106,7 +108,8 @@ fn setup_player(
             },
             PlayerAnimationTimer(Timer::from_seconds(0.2, TimerMode::Repeating)),
             FireballWeapon {
-                base_dmg: 10,
+                base_dmg: 9,
+                extra_dmg: 3,
                 spawn_timer: Timer::from_seconds(FIREBALL_COOLDOWN, TimerMode::Repeating),
             },
             RigidBody::Dynamic,
@@ -400,6 +403,8 @@ fn attack_enemy_collisions(
     mut enemy_query: Query<(&mut Enemy, &Transform)>,
     mut damage_number_writer: EventWriter<effects::DamageNumberEvent>,
 ) {
+    let mut rng = rand::thread_rng();
+
     'attack_loop: for (attack_entity, attack) in attack_query.iter() {
         for (collider1, collider2, intersecting) in rapier_context.intersections_with(attack_entity)
         {
@@ -411,9 +416,10 @@ fn attack_enemy_collisions(
                 };
                 let Ok((mut enemy, enemy_transform)) = enemy_query.get_mut(enemy_entity) else { continue 'attack_loop };
 
-                enemy.hp -= attack.dmg;
+                let attack_dmg = attack.base_dmg + rng.gen_range(0..attack.extra_dmg);
+                enemy.hp -= attack_dmg;
                 damage_number_writer.send(effects::DamageNumberEvent {
-                    dmg: attack.dmg,
+                    dmg: attack_dmg,
                     position: enemy_transform.translation,
                 });
 
@@ -537,6 +543,7 @@ fn launch_fireball(
             rotation_radians,
             relative_enemy_position.normalize(),
             weapon.base_dmg,
+            weapon.extra_dmg,
         );
     }
 }
@@ -547,10 +554,14 @@ fn spawn_fireball(
     position: Vec3,
     rotation_radians: f32,
     direction: Vec2,
-    damage: i32,
+    base_damage: i32,
+    extra_damage: i32,
 ) {
     commands.spawn((
-        Attack { dmg: damage },
+        Attack {
+            base_dmg: base_damage,
+            extra_dmg: extra_damage,
+        },
         SpriteBundle {
             texture: asset_server.load("effects/fireball.png"),
             transform: Transform {
