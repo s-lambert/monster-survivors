@@ -1,3 +1,4 @@
+use crate::utils::*;
 use bevy::prelude::*;
 use bevy::sprite::*;
 use bevy::utils::HashMap;
@@ -8,6 +9,7 @@ use std::f32::consts::PI;
 mod effects;
 mod level_up_menu;
 mod physics_groups;
+mod utils;
 
 #[derive(Debug, PartialEq, Eq, Hash, Copy, Clone)]
 pub enum GameState {
@@ -319,20 +321,6 @@ fn animate_player(
     }
 }
 
-// TODO: Replace with a spring https://theorangeduck.com/page/spring-roll-call
-fn lerp(x: f32, y: f32, t: f32) -> f32 {
-    (1.0 - t) * x + t * y
-}
-
-fn inverse_lerp(x: f32, y: f32, v: f32) -> f32 {
-    (v - x) / (y - x)
-}
-
-fn remap(input_min: f32, input_max: f32, output_min: f32, output_max: f32, value: f32) -> f32 {
-    let t = inverse_lerp(input_min, input_max, value);
-    lerp(output_min, output_max, t)
-}
-
 fn move_player(
     _time: Res<Time>,
     keyboard_input: Res<Input<KeyCode>>,
@@ -340,6 +328,7 @@ fn move_player(
 ) {
     let Some(mut player_velocity) = query.iter_mut().next() else { return };
 
+    // TODO: Replace lerp with a spring https://theorangeduck.com/page/spring-roll-call
     if keyboard_input.pressed(KeyCode::Left) {
         player_velocity.linvel.x = lerp(player_velocity.linvel.x, -PLAYER_SPEED, 0.5);
     } else if keyboard_input.pressed(KeyCode::Right) {
@@ -657,7 +646,7 @@ fn main() {
                 .with_system(launch_fireball)
                 .with_system(attack_enemy_collisions)
                 .with_system(effects::display_damage_numbers.after(attack_enemy_collisions))
-                .with_system(effects::animate_damage_numbers.after(effects::display_damage_numbers))
+                .with_system(effects::remove_damage_numbers.after(effects::display_damage_numbers))
                 .with_system(level_up)
                 .with_system(pickup_gems.after(level_up))
                 .with_system(animate_exp_bar.after(pickup_gems))
