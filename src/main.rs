@@ -333,7 +333,6 @@ fn animate_player(
             if sprite.index >= texture_atlas.textures.len() {
                 sprite.index = 1;
             }
-            println!("{}", sprite.index);
         }
     }
 }
