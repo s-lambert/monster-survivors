@@ -71,6 +71,7 @@ const WINDOW_SIZE: f32 = 500.0;
 const PLAYER_SPEED: f32 = 100.0;
 const PLAYER_HP_WIDTH: f32 = 18.0;
 const PLAYER_EXP_WIDTH: f32 = 220.0;
+const PLAYER_SPRITE_DIMENSIONS: (f32, f32) = (28.0, 46.0);
 const FIREBALL_COOLDOWN: f32 = 0.5;
 const FIREBALL_SPEED: f32 = 200.0;
 const ENEMY_SPEED: f32 = 80.0;
@@ -87,9 +88,15 @@ fn setup_player(
     asset_server: Res<AssetServer>,
     mut texture_atlases: ResMut<Assets<TextureAtlas>>,
 ) {
-    let spritesheet_handle = asset_server.load("player-sheet.png");
-    let texture_atlas =
-        TextureAtlas::from_grid(spritesheet_handle, Vec2::new(24.0, 24.0), 4, 1, None, None);
+    let spritesheet_handle = asset_server.load("chudjak.png");
+    let texture_atlas = TextureAtlas::from_grid(
+        spritesheet_handle,
+        Vec2::new(PLAYER_SPRITE_DIMENSIONS.0, PLAYER_SPRITE_DIMENSIONS.1),
+        7,
+        1,
+        None,
+        None,
+    );
     commands
         .spawn((
             Player {
@@ -100,15 +107,16 @@ fn setup_player(
                 hp: 100,
             },
             SpriteSheetBundle {
+                sprite: TextureAtlasSprite::new(1),
                 texture_atlas: texture_atlases.add(texture_atlas),
                 transform: Transform {
                     translation: Vec3::new(0.0, 0.0, 1.0),
-                    scale: Vec3::splat(2.0),
+                    scale: Vec3::splat(1.0),
                     ..default()
                 },
                 ..default()
             },
-            PlayerAnimationTimer(Timer::from_seconds(0.2, TimerMode::Repeating)),
+            PlayerAnimationTimer(Timer::from_seconds(0.1, TimerMode::Repeating)),
             FireballWeapon {
                 base_dmg: 9,
                 extra_dmg: 3,
@@ -321,7 +329,11 @@ fn animate_player(
         timer.tick(time.delta());
         if timer.just_finished() {
             let texture_atlas = texture_atlases.get(texture_atlas_handle).unwrap();
-            sprite.index = (sprite.index + 1) % texture_atlas.textures.len();
+            sprite.index += 1;
+            if sprite.index >= texture_atlas.textures.len() {
+                sprite.index = 1;
+            }
+            println!("{}", sprite.index);
         }
     }
 }
