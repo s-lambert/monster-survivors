@@ -2,6 +2,7 @@ use crate::utils::*;
 use bevy::prelude::*;
 use bevy::sprite::*;
 use bevy::utils::HashMap;
+use bevy::window::WindowResolution;
 use bevy_rapier2d::prelude::*;
 use rand::Rng;
 use std::f32::consts::PI;
@@ -11,8 +12,9 @@ mod level_up_menu;
 mod physics_groups;
 mod utils;
 
-#[derive(Debug, PartialEq, Eq, Hash, Copy, Clone)]
+#[derive(States, Default, Debug, PartialEq, Eq, Hash, Copy, Clone)]
 pub enum GameState {
+    #[default]
     Playing,
     LevellingUp,
     Paused,
@@ -458,7 +460,7 @@ fn pickup_gems(
 fn level_up(
     mut player_query: Query<&mut Player>,
     mut rapier_config: ResMut<RapierConfiguration>,
-    mut state: ResMut<State<GameState>>,
+    mut state: ResMut<NextState<GameState>>,
 ) {
     let Some(mut player) = player_query.iter_mut().next() else { return };
     if player.curr_exp >= player.next_exp {
@@ -467,7 +469,7 @@ fn level_up(
         player.next_exp = ((((player.lvl as f32).log(10.0)) + player.lvl as f32) * 100.0) as i32;
 
         rapier_config.physics_pipeline_active = false;
-        state.push(GameState::LevellingUp).unwrap();
+        state.set(GameState::LevellingUp);
     }
 }
 
@@ -592,41 +594,40 @@ fn camera_follow_player(
 
 fn pause_game(
     mut keyboard_input: ResMut<Input<KeyCode>>,
-    mut state: ResMut<State<GameState>>,
+    mut state: ResMut<NextState<GameState>>,
     mut rapier_config: ResMut<RapierConfiguration>,
 ) {
     if keyboard_input.just_pressed(KeyCode::Space) {
         rapier_config.physics_pipeline_active = false;
-        state.push(GameState::Paused).unwrap();
+        state.set(GameState::Paused);
         keyboard_input.reset(KeyCode::Space);
     }
 }
 
 fn unpause_game(
     mut keyboard_input: ResMut<Input<KeyCode>>,
-    mut state: ResMut<State<GameState>>,
+    mut state: ResMut<NextState<GameState>>,
     mut rapier_config: ResMut<RapierConfiguration>,
 ) {
     if keyboard_input.just_pressed(KeyCode::Space) {
         rapier_config.physics_pipeline_active = true;
-        state.pop().unwrap();
+        state.set(GameState::Playing);
         keyboard_input.reset(KeyCode::Space);
     }
 }
 
 fn main() {
     App::new()
-        .add_state(GameState::Playing)
+        .add_state::<GameState>()
         .add_plugins(
             DefaultPlugins
                 .set(ImagePlugin::default_nearest())
                 .set(WindowPlugin {
-                    window: WindowDescriptor {
+                    primary_window: Some(Window {
                         title: "Monster Survivors!".to_string(),
-                        width: WINDOW_SIZE,
-                        height: WINDOW_SIZE,
+                        resolution: WindowResolution::new(WINDOW_SIZE, WINDOW_SIZE),
                         ..default()
-                    },
+                    }),
                     ..default()
                 }),
         )
@@ -640,45 +641,36 @@ fn main() {
         .add_plugin(RapierPhysicsPlugin::<NoUserData>::pixels_per_meter(100.0))
         .add_plugin(RapierDebugRenderPlugin::default())
         .add_startup_system(global_setup)
-        .add_system_set(
-            SystemSet::on_enter(GameState::Playing)
-                .with_system(setup_background)
-                .with_system(setup_player)
-                .with_system(setup_spawns),
+        .add_startup_systems((setup_background, setup_player, setup_spawns))
+        // TODO: Do not run when other states are active
+        .add_systems(
+            (
+                spawn_enemies,
+                move_player,
+                move_towards_player,
+                animate_loops,
+                animate_player,
+                launch_fireball,
+                attack_enemy_collisions,
+                effects::display_damage_numbers.after(attack_enemy_collisions),
+                effects::animate_damage_numbers,
+                effects::remove_damage_numbers.after(effects::display_damage_numbers),
+                level_up,
+                pickup_gems.after(level_up),
+                animate_exp_bar.after(pickup_gems),
+                player_enemy_collisions.after(attack_enemy_collisions),
+                animate_hp_bar.after(player_enemy_collisions),
+            )
+                .in_set(OnUpdate(GameState::Playing)),
         )
-        .add_system_set(
-            SystemSet::on_update(GameState::Playing)
-                .with_system(pause_game)
-                .with_system(spawn_enemies)
-                .with_system(move_player)
-                .with_system(move_towards_player)
-                .with_system(animate_loops)
-                .with_system(animate_player)
-                .with_system(launch_fireball)
-                .with_system(attack_enemy_collisions)
-                .with_system(effects::display_damage_numbers.after(attack_enemy_collisions))
-                .with_system(effects::animate_damage_numbers)
-                .with_system(effects::remove_damage_numbers.after(effects::display_damage_numbers))
-                .with_system(level_up)
-                .with_system(pickup_gems.after(level_up))
-                .with_system(animate_exp_bar.after(pickup_gems))
-                .with_system(player_enemy_collisions.after(attack_enemy_collisions))
-                .with_system(animate_hp_bar.after(player_enemy_collisions)),
-        )
-        .add_system_set(
-            SystemSet::on_enter(GameState::LevellingUp)
-                .with_system(level_up_menu::add_level_up_menu),
-        )
-        .add_system_set(
-            SystemSet::on_update(GameState::LevellingUp).with_system(level_up_menu::handle_choice),
-        )
-        .add_system_set(
-            SystemSet::on_exit(GameState::LevellingUp)
-                .with_system(level_up_menu::remove_level_up_menu),
-        )
-        .add_system_set(SystemSet::on_update(GameState::Paused).with_system(unpause_game))
+        .add_systems(())
+        .add_system(level_up_menu::add_level_up_menu.in_schedule(OnEnter(GameState::LevellingUp)))
+        .add_system(level_up_menu::handle_choice.in_set(OnUpdate(GameState::LevellingUp)))
+        .add_system(level_up_menu::remove_level_up_menu.in_schedule(OnExit(GameState::LevellingUp)))
+        .add_system(pause_game.in_set(OnUpdate(GameState::Playing)))
+        .add_system(unpause_game.in_set(OnUpdate(GameState::Paused)))
         // TOOD: Not sure if this is the right place to add it, see if there's a way to add after a plugin.
-        .add_system_to_stage(CoreStage::PostUpdate, camera_follow_player)
+        .add_system(camera_follow_player.in_base_set(CoreSet::PostUpdate))
         .add_system(bevy::window::close_on_esc)
         .run();
 }

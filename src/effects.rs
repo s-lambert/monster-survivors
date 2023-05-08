@@ -42,7 +42,7 @@ pub fn display_damage_numbers(
                         damage_number_event.dmg.to_string(),
                         text_style.clone(),
                     )
-                    .with_alignment(TextAlignment::CENTER),
+                    .with_alignment(TextAlignment::Center),
                     transform: Transform::from_translation(position.extend(EFFECT_Z_LAYER)),
                     ..default()
                 },
