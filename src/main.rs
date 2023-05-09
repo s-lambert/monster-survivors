@@ -229,7 +229,6 @@ fn setup_spawns(mut commands: Commands) {
 fn spawn_enemies(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
-    mut texture_atlases: ResMut<Assets<TextureAtlas>>,
     time: Res<Time>,
     mut enemy_spawner_query: Query<&mut EnemySpawner>,
     player_transform_query: Query<&Transform, With<Player>>,
@@ -246,30 +245,16 @@ fn spawn_enemies(
             let point_on_circle = Vec2::new(rotation.cos(), rotation.sin());
             let point_around_player =
                 player_transform.translation + (point_on_circle * radius).extend(0.0);
-            spawn_bat(
-                &mut commands,
-                &asset_server,
-                &mut texture_atlases,
-                point_around_player,
-            );
+            spawn_soyjak(&mut commands, &asset_server, point_around_player);
         }
     }
 }
 
-fn spawn_bat(
-    commands: &mut Commands,
-    asset_server: &Res<AssetServer>,
-    texture_atlases: &mut ResMut<Assets<TextureAtlas>>,
-    translation: Vec3,
-) {
-    let spritesheet_handle = asset_server.load("bat-sheet.png");
-    let texture_atlas =
-        TextureAtlas::from_grid(spritesheet_handle, Vec2::new(24.0, 24.0), 4, 1, None, None);
-
+fn spawn_soyjak(commands: &mut Commands, asset_server: &Res<AssetServer>, translation: Vec3) {
     commands.spawn((
         Enemy { hp: 10 },
-        SpriteSheetBundle {
-            texture_atlas: texture_atlases.add(texture_atlas),
+        SpriteBundle {
+            texture: asset_server.load("soyjak.png"),
             transform: Transform {
                 translation: translation,
                 scale: Vec3::splat(1.5),
@@ -277,7 +262,6 @@ fn spawn_bat(
             },
             ..default()
         },
-        LoopAnimationTimer(Timer::from_seconds(0.1, TimerMode::Repeating)),
         RigidBody::Dynamic,
         Collider::cuboid(8.0, 8.0),
         CollisionGroups::new(
@@ -633,7 +617,7 @@ fn main() {
                 .set(ImagePlugin::default_nearest())
                 .set(WindowPlugin {
                     primary_window: Some(Window {
-                        title: "Monster Survivors!".to_string(),
+                        title: "Billions Must Die!".to_string(),
                         resolution: WindowResolution::new(WINDOW_SIZE, WINDOW_SIZE),
                         ..default()
                     }),
