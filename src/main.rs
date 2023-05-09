@@ -345,14 +345,15 @@ fn move_player(
 
 fn move_towards_player(
     player_transform_query: Query<&Transform, With<Player>>,
-    mut enemy_query: Query<(&Transform, &mut Velocity), With<Enemy>>,
+    mut enemy_query: Query<(&Transform, &mut Velocity, &mut Sprite), With<Enemy>>,
 ) {
     let Some(player_transform) = player_transform_query.iter().next() else { return };
-    for (enemy_transform, mut enemy_velocity) in enemy_query.iter_mut() {
+    for (enemy_transform, mut enemy_velocity, mut sprite) in enemy_query.iter_mut() {
         let direction_to_player = (player_transform.translation - enemy_transform.translation)
             .normalize()
             .truncate();
         enemy_velocity.linvel = direction_to_player * ENEMY_SPEED;
+        sprite.flip_x = direction_to_player.x < 0.0;
     }
 }
 
