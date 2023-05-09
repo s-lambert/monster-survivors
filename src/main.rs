@@ -70,7 +70,7 @@ struct Attack {
 const WINDOW_SIZE: f32 = 500.0;
 const PLAYER_SPEED: f32 = 100.0;
 const PLAYER_HP_WIDTH: f32 = 18.0;
-const PLAYER_EXP_WIDTH: f32 = 220.0;
+const PLAYER_EXP_WIDTH: f32 = 440.0;
 const PLAYER_SPRITE_DIMENSIONS: (f32, f32) = (28.0, 46.0);
 const FIREBALL_COOLDOWN: f32 = 0.5;
 const FIREBALL_SPEED: f32 = 200.0;
@@ -111,7 +111,6 @@ fn setup_player(
                 texture_atlas: texture_atlases.add(texture_atlas),
                 transform: Transform {
                     translation: Vec3::new(0.0, 0.0, 1.0),
-                    scale: Vec3::splat(1.0),
                     ..default()
                 },
                 ..default()
@@ -157,7 +156,7 @@ fn setup_player(
                     },
                     transform: Transform {
                         scale: Vec3::new(18.0, 2.0, 0.0),
-                        translation: Vec3::new(-9.0, -14.0, 1.0),
+                        translation: Vec3::new(-9.0, -28.0, 1.0),
                         ..default()
                     },
                     ..default()
@@ -173,7 +172,6 @@ fn setup_player(
                     },
                     transform: Transform {
                         scale: Vec3::new(PLAYER_EXP_WIDTH, 10.0, 0.0),
-                        // TODO: Look into why (-110, 110) is close to the corner of the screen
                         translation: Vec3::new(
                             -PLAYER_EXP_WIDTH / 2.0,
                             PLAYER_EXP_WIDTH / 2.0,
