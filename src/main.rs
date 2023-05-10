@@ -1,16 +1,18 @@
+mod cat_weapon;
+mod effects;
+mod level_up_menu;
+mod physics_groups;
+mod utils;
+
 use crate::utils::*;
 use bevy::prelude::*;
 use bevy::sprite::*;
 use bevy::utils::HashMap;
 use bevy::window::WindowResolution;
 use bevy_rapier2d::prelude::*;
+use cat_weapon::CatWeaponPlugin;
 use rand::Rng;
 use std::f32::consts::PI;
-
-mod effects;
-mod level_up_menu;
-mod physics_groups;
-mod utils;
 
 #[derive(States, Default, Debug, PartialEq, Eq, Hash, Copy, Clone)]
 pub enum GameState {
@@ -666,5 +668,6 @@ fn main() {
         // TOOD: Not sure if this is the right place to add it, see if there's a way to add after a plugin.
         .add_system(camera_follow_player.in_base_set(CoreSet::PostUpdate))
         .add_system(bevy::window::close_on_esc)
+        .add_plugin(CatWeaponPlugin)
         .run();
 }

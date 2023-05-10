@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use bevy_rapier2d::plugin::RapierConfiguration;
 
-use crate::GameState;
+use crate::{cat_weapon::AddCatWeaponEvent, GameState};
 
 #[derive(Component)]
 pub struct LevelUpMenu;
@@ -171,6 +171,7 @@ pub fn handle_choice(
     mut keyboard_input: ResMut<Input<KeyCode>>,
     mut state: ResMut<NextState<GameState>>,
     mut rapier_config: ResMut<RapierConfiguration>,
+    mut add_cat_weapon_event: EventWriter<AddCatWeaponEvent>,
 ) {
     for (interaction, item_choice) in &interaction_query {
         if let Interaction::Clicked = interaction {
@@ -179,6 +180,7 @@ pub fn handle_choice(
             rapier_config.physics_pipeline_active = true;
             state.set(GameState::Playing);
             keyboard_input.reset(KeyCode::Space);
+            add_cat_weapon_event.send(AddCatWeaponEvent);
         }
     }
 }
