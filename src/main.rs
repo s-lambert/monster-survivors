@@ -36,7 +36,7 @@ struct FireballWeapon {
 }
 
 #[derive(Component)]
-struct Player {
+pub struct Player {
     lvl: i32,
     curr_exp: i32,
     next_exp: i32,
