@@ -258,8 +258,7 @@ fn spawn_soyjak(commands: &mut Commands, asset_server: &Res<AssetServer>, transl
         SpriteBundle {
             texture: asset_server.load("soyjak.png"),
             transform: Transform {
-                translation: translation,
-                scale: Vec3::splat(1.5),
+                translation,
                 ..default()
             },
             ..default()
