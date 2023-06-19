@@ -580,11 +580,16 @@ fn camera_follow_player(
     mut camera_transform_query: Query<&mut Transform, (With<Camera>, Without<Player>)>,
     player_transform_query: Query<&Transform, With<Player>>,
 ) {
+    println!("follow player system");
     let Some(mut camera_transform) = camera_transform_query.iter_mut().next() else { return };
+    println!("camera transform: ${}", camera_transform.translation);
     let Some(player_transform) = player_transform_query.iter().next() else { return };
+    println!("player transform: ${}", player_transform.translation);
 
     camera_transform.translation.x = player_transform.translation.x;
     camera_transform.translation.y = player_transform.translation.y;
+
+    println!("final camera transform: ${}", camera_transform.translation);
 }
 
 fn pause_game(
