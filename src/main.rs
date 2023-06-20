@@ -1,4 +1,5 @@
 mod bgm;
+mod camera;
 mod cat_weapon;
 mod effects;
 mod level_up_menu;
@@ -12,6 +13,7 @@ use bevy::utils::HashMap;
 use bevy::window::WindowResolution;
 use bevy_rapier2d::prelude::*;
 use bgm::BgmPlugin;
+use camera::CameraPlugin;
 use cat_weapon::CatWeaponPlugin;
 use rand::Rng;
 use std::f32::consts::PI;
@@ -669,9 +671,8 @@ fn main() {
         .add_system(level_up_menu::remove_level_up_menu.in_schedule(OnExit(GameState::LevellingUp)))
         .add_system(pause_game.in_set(OnUpdate(GameState::Playing)))
         .add_system(unpause_game.in_set(OnUpdate(GameState::Paused)))
-        // TOOD: Not sure if this is the right place to add it, see if there's a way to add after a plugin.
-        .add_system(camera_follow_player.in_base_set(CoreSet::PostUpdate))
         .add_system(bevy::window::close_on_esc)
+        .add_plugin(CameraPlugin)
         .add_plugin(CatWeaponPlugin)
         .add_plugin(BgmPlugin)
         .run();
